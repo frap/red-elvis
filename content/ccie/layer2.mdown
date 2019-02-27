@@ -1,0 +1,170 @@
+Title: layer2
+
+#Layer 2
+
+✂------✂------✂------✂------✂------✂------✂------✂------✂------✂------
+
+## ATM
+The 5 byte ATM UNI and NNI cell headers are shown below:
+
+![ATM UNI][1]
+
+The NNI cell header format, depicted below, includes the same fields except that the GFC space is displaced by a larger VPI space, occupying 12 bits and making more VPIs available for NNIs. 
+
+![ATM NNI][2]
+
+The following are descriptions of the cell header components:
+
+ * GFC – Generic Flow Control. 4 bits
+ * VPI – Virtual Path ID. 8 bits (255 values) for UNI. 12 bits (4095 values) for NNI
+ * VCI – Virtual Circuit ID. 16 bits (65535 values).
+ * PT – Payload Type. The second and third bits indicate Maintenance or Management flow data for Control traffic
+    *	First Bit – Control Data or User Data
+    *	Second Bit – Congestion notification for User Data
+    *	Third Bit – End of AAL5 frame for User Data
+ * CLP – Cell Loss Priority. Indicates whether or not a cell should be discarded when encountering congestion
+ * HEC – Header Error Correction. Contains an 8 bit CRC for the header.
+
+The ATM architecture is based on a logical model, called the ATM reference model, that describes the functionality it supports. In the ATM reference model (below), the ATM physical layer corresponds approximately to the physical layer of the OSI reference model, and the ATM layer and ATM adaptation layer (AAL) are roughly analogous to the data link layer of the OSI reference model.
+
+![ATM Reference Model][3]
+
+###Traffic Contracts & Service Categories
+ATM connections are further characterized by a traffic contract, which specifies a service category along with traffic and quality of service (QoS) parameters. Five service categories are currently defined, each with a purpose and its own interpretation of applicable parameters
+
+#### Traffic Contract 
+At the time a connection is set up, a traffic contract is entered, guaranteeing that the requested service requirements will be met. These requirements are traffic parameters and QoS parameters: 
+
+ * Traffic parameters—generally pertain to bandwidth requirements and include the following: 
+   * Peak cell rate (PCR) 
+   * Sustainable cell rate (SCR) 
+   * Burst tolerance, conveyed through the maximum burst size (MBS) 
+   * Cell delay variation tolerance (CDVT) 
+   * Minimum cell rate (MCR) 
+ * QoS parameters—generally pertain to cell delay and loss requirements and include the following: 
+   * Maximum cell transfer delay (MCTD) 
+   * Cell loss ratio (CLR) 
+   * Peak-to-peak cell delay variation (ppCDV) 
+
+####Service Categories
+ATM provides five standard service categories that meet these requirements by defining individual performance characteristics, ranging from best effort (Unspecified Bit Rate [UBR]) to highly controlled, full-time bandwidth (Constant Bit Rate [CBR]). Below lists each service category defined by the ATM Forum along with its applicable traffic parameters and QoS characteristics. 
+
+![ATM Service Categories][4]
+
+The characteristics and uses of each service category are summarized as follows: 
+
+ * CBR service provides constant bandwidth with a fixed timing relationship, which requires clocking synchronization. Because CBR traffic reserves a fixed amount of bandwidth, some trunk bandwidth might go unused. CBR is typically used for circuit emulation services to carry real-time voice and video. 
+ * VBR-RT service provides only a partial bandwidth guarantee. Like CBR, however, some bandwidth might still go unused. Typical applications include packetized voice and video, and interactive multimedia. 
+ * VBR-NRT service provides a partial bandwidth guarantee, but with a higher cell delay than VBR-RT. This service category is suitable for bursty applications, such as file transfers. 
+ * ABR provides a best effort service, in which feedback flow control within the network is used to increase bandwidth when no congestion is present, maximizing the use of the network. 
+ * UBR service provides no bandwidth guarantee, but attempts to fill bandwidth gaps with bursty data. UBR is well suited for LAN protocols, such as LAN emulation. An additional category, UBR+, is a Cisco extension to UBR that provides for a nonzero MCR in the traffic contract. 
+
+###Service-dependent ATM Adaption layers
+For ATM to support multiple classes of service with different traffic characteristics and requirements, it is necessary to adapt the different classes to the ATM layer. This adaptation is performed by the service-dependent AAL. 
+The service-dependent AAL provides a set of rules for segmentation and reassembly of packets. The sender segments the packet and builds a set of cells for transmission, while the receiver verifies the integrity of the packet and reassembles the cells back into packets—all according to a set of rules designed to satisfy a particular type of service. Table 1-2 lists the four AAL types recommended by the ITU-T, along with the service categories commonly supported by each and the corresponding connection mode. 
+
+![ATM Service Dependent AAL][5]
+
+###Autconfigured ATM Addressing Scheme
+During initial startup, the ATM switch router generates an ATM address using the following defaults (see Figure below):
+
+ *	AFI=47—indicates an address of type ICD
+ * 	ICD=0091(Cisco-specific)
+ *	Cisco-specific address type (part of HO-DSP)=81000000
+ *	Cisco switch ID=MAC format address
+ *	ESI=MAC address repeated
+ *	Selector equals 0—1 byte
+
+![ATM Addressing][6]
+
+The autoconfigured address mechanism provides a default ATM address for the unconfigured switch. This default address is used by the following protocols:
+
+ *	The Integrated Local Management Interface (ILMI)—a protocol and part of the UNI specifications that facilitates sharing of management information across the UNI. ILMI uses the first 13 bytes of this address to hand to end systems for the generation of ESI addresses. See the "ILMI Use of the ATM Address" section.
+ *	Private Network-Network Interface (PNNI)—a dynamic routing protocol for ATM networks. PNNI uses the 13-byte prefix to establish itself as a node in a single-level PNNI routing domain and the first 7 bytes to construct the default peer group identifier. For a complete discussion, see "ATM Routing with IISP and PNNI."
+The general structure of NSAP format ATM addresses, shown in Figure 2-2, is as follows:
+ *	An initial domain part (IDP)—consists of two elements: an authority and format identifier (AFI) that identifies the type and format of the second element, the initial domain identifier (IDI). The IDI identifies the address allocation and administration authority.
+ *	A domain specific part (DSP)—contains the actual routing information in three elements: a high-order domain specific part (HO-DSP), an end system identifier (ESI), which is the MAC address, and NSAP selector (SEL) field, used to identify LAN emulation (LANE) components.
+
+![ATM NSAP Addresses][7]
+
+ * Private ATM address formats are of three types that differ by the nature of their AFI and IDI (see Figure 2-2):
+ * DCC format (AFI=39)—the IDI is a Data Country Code (DCC). DCC addresses are administered by the ISO national member body in each country.
+ * ICD format (AFI=47)—the IDI is an International Code Designator (ICD). ICD address codes identify particular international organizations and are allocated by the British Standards Institute.
+ * NSAP encoded E.164 format (AFI=45)—the IDI is an E.164 number.
+
+##POS
+SONET Layers:
+
+ * Section
+ * Line
+ * Path
+
+Each Synchronous Transport Signal-1 (STS-1) consists of 810 bytes, which includes 27 bytes for the Transport Overhead (TOH) and 783 bytes for the Synchronous Payload Envelope (SPE). 
+The Section OverHead (SOH) and Line OverHead (LOH) form the Transport OverHead (TOH), while the POH and actual payload (referred to as Payload Capacity in Figure 1) form the Synchronous Payload Envelope (SPE). 
+
+![POS layers][8]
+
+Each layer adds some number of overhead bytes to the SONET frame. This table illustrates the overhead bytes of the SONET frame:
+
+![POS overhead][9]
+
+###C2 byte
+The SONET standard defines the C2 byte as the path signal label. The purpose of this byte is to communicate the payload type that the SONET Framing OverHead (FOH) encapsulates. The C2 byte functions similar to Ethertype and Logical Link Control (LLC)/Subnetwork Access Protocol (SNAP) header fields on an Ethernet network. The C2 byte allows a single interface to transport multiple payload types simultaneously. 
+This table lists common values for the C2 byte:
+
+![C2 byte][10]
+
+
+####C2 byte and scrambling
+With reference to the table, POS interfaces use a value of 0x16 or 0xCF in the C2 byte depending on whether ATM-style scrambling is enabled. RFC 2615  , which defines PPP over SONET/SDH, mandates the use of these values based on the scrambling setting. This is how the RFC defines the C2 byte values:
+"The value of 22 (16 hex) is used to indicate PPP with X^43+ 1 scrambling [4]. For compatibility with RFC 1619 (STS-3c-SPE/VC-4 only), if scrambling has been configured to be off, then the value 207 (CF hex) is used for the Path Signal Label to indicate PPP without scrambling." 
+In other words: 
+
+ * If scrambling is enabled, POS interfaces use a C2 value of 0x16.
+ * If scrambling is disabled, POS interfaces use a C2 value of 0xCF.
+
+Most POS interfaces that use a default C2 value of 0x16 (22 decimal) insert the pos flag c2 22 command in the configuration, although this line does not appear in the running configuration because 0x16 is the default value. Use the pos flag c2 command to change the default value.
+	7507-3a(config-if)#pos flag c2 ?
+	   <0-255>  byte value
+Use the show running-config command to confirm your change. The show controller pos command outputs the receive value. Therefore, a change in the value on the local end does not change the value in the show controller command output. 
+	7507-3a#show controller pos 0/0/0
+	COAPS = 13       PSBF = 3
+	 State: PSBF_state = False
+	 Rx(K1/K2): 00/00  Tx(K1/K2): 00/00
+	 S1S0 = 00, C2 = CF
+	Understand Scrambling and Two Levels 
+	Scrambling randomizes the pattern of 1s and 0s carried in the SONET frame in order to prevent continuous strings of all 1s or all 0s. This process also meets the needs of physical layer protocols that rely on sufficient transitions between 1s and 0s to maintain clocking. 
+	POS interfaces support two levels of scrambling, which are explained here: 
+	
+ *	The International Telecommunications Union (ITU-T) GR-253 standard defines a 1 + x6 + x7 algorithm that scrambles all but the first row of the SOH. You cannot disable this scrambler, which is adequate when the SONET frames carry phone calls in the payload. 
+ *	The ITU-T I.432 standard defines what POS interfaces refer to as ATM-style scrambling. This scrambler uses a polynomial of 1 + x43, and is a self-synchronous scrambler. This means that the sender does not need to send any state to the receiver. 
+
+As a relatively simple string of 0s can lead to a line flap and interrupt service, Cisco recommends that you enable ATM-style scrambling in all configurations, including dark fiber. On some line cards on the Gigabit Switch Router (GSR), for example, the OC-192 POS, the scrambling command has been removed from the command-line interface, and you must enable this command. Scrambling remains OFF by default on lower-speed POS line cards for backward compatibility. 
+
+Scrambling is performed in hardware, and poses no performance penalty on the router. Scrambling occurs directly in the framer Application-Specific Integrated Circuit (ASIC) on newer line cards like the GSR's 8/16xOC3 and 4xOC12, or in an adjacent ASIC on older line cards like the GSR's 4xOC3 or 1xOC12 POS. 
+
+Figure 2 shows the proper order of operation, and indicates when scrambling is performed during transmission. 
+![][11]
+
+
+[1]: ./images/ATM-UNI.tiff
+
+[2]: ./images/ATM-NNI.tiff
+
+[3]: ./images/ATM-Reference-model.tiff
+
+[4]: ./images/ATM-Service-Categories.tiff
+
+[5]: ./images/ATM-Service-Dependent-AAL.tiff
+
+[6]: ./images/ATM-Address.tiff
+
+[7]: ./images/ATM-NSAP-address.tiff
+
+[8]: ./images/POS-layers.tiff
+
+[9]: ./images/POS-overhead.tiff
+
+[10]: ./images/POS-C2byte.tiff
+
+[11]: ./images/POS-order.tiff

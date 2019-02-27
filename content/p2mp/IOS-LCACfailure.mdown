@@ -1,0 +1,44 @@
+# Link Admission Control
+
+## Test Description
+Traffic Engineering (TE) Link Admission Control (LCAC) at each hop will, when receiving the PATH message determine if resources are available. If Admission Control fails LCAC will send PATHError. LCAC may tear down existing LSPs with a lower priority. LCAC also triggers IGP information distribution when resource thresholds are crossed.
+
+This test will emonstarted the correct functioning of LCAC. We will adjust the LCAC flooding threshold (on interface use `mpls traffic-eng flooding thresholds up`) on a bandwidth constrained link so that the it is very corase . We will then set up a tunnel to use up ***almost*** all of the bandwidth up to the first threshold. Thereby PCACL will not receive an update to its link management for this tunnel. We will then setup another tunnel to use more bandwidth than is available on this link (after 1st provisioned tunnel) which PCACL will pass nad when the RSVP Path message is issues it should fial at the node that has the bandwidth constrained link. This node then should trigeer an update of the link-management attributes
+
+## Test Method
+Using the following IOU lab setup  
+![IOU LCAC](images/IOS-LCACfailure.png "Link Admission Control")  
+
+ 1. We change the mpls traffic reoptimisation timer too 10 minutes so the etst can complete without a repotimisation event
+ 2. We change the flooding threshold for the bandwidth contrained link (core e0/2) to be triggered at 50% utilisation.
+ 3. We setup a p2mp tunnel at she1 with destinations edge1 (0.69) & edge2 (0.70) with a bandwidth of 4.9M. 
+ 4. We set debug mpls traffic-eng link-management events at she1 and core.
+ 5. We set up a new tunnel for she1 to destinations edge1 and edge2 with a bandwidth of 7Mb.
+ 6. We record the PATH error message sent by core node to she1 for failure of Link Admission Control (LCAC) 
+
+## Test Results
+
+### Case 1: Shortest Path does not have enough Bandwidth
+after 1st tunnel setup
+
+< sh mps tr tun >
+
+we see that SHE 1 thinks core still has a 10Mb link
+
+< sh link management>
+
+We then set up second tunnel and we get
+
+
+
+
+	
+##Appendix LCAC Algorithim
+Link Admission Control
+
+Invoked by Path message
+
+ * if BW is available, this BW is put aside in a waiting pool (waiting for the RESV msg)
+ * if this process required the pre-emption of resources, LCAC notified RSVP of the pre-emption which then sent PathErr and/or ResvErr for the pre-empted tunnel
+ * if BW is not available, LCAC says “No” to RSVP and a Path error is sent. A flooding of the node’s resource info is triggered, if needed
+

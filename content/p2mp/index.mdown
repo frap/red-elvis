@@ -1,0 +1,5 @@
+# MPLS P2MP TE Tunnel Notes 
+
+ * [Config P2MP on IOS](/IOSconfig-expl.html)
+ * [Config P2MP on XR](/XRconfig-expl.html)
+ * [IOS P2MP POC tests](/IOS-P2MP-POC.html)

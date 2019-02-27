@@ -1,0 +1,1067 @@
+# Bandwidth Constraint Based Path Computation
+
+## Test Description
+Traffic Engineering (TE) will use the IGPs shortest path calculation to determine the tree of paths to the tail-end destination of the tunnel. TE then uses the constraint based path computation (PCALC) at the head-end, and compares the link attributes received via the IGP to those required (ie configured on) by the tunnel and will select the shortest path whose link attributes meet the tunnel's attribute requirements. 
+
+These tests will set different non-conforming (with tunnels requirements) attributes on the shortest IGP path to tail-end destination to prove that the constraint based path computation works. The second part of each test will check that PCALC's re-optimisation works by removing the non-conforming attibute from the shortest path.
+
+## Test Method
+Using the following IOU lab setup  
+![IOU BCBPC](images/IOS-PCALC.png "Constraint Based Path Computation")   
+we setup p2mp tunnel at she1 with destinations edge1 (0.69) & edge2 (0.70).  
+On the shortest path to edge2 we change:
+
+  * the rsvp bandwidth (10Mb) so it doesn't meet the head-end tunnel requirements (20Mb)
+  * the affinity (0x10)
+  * TE-specific link metric (not supported for p2mp TE tunnels)
+
+## Test Results
+
+### Case 1: Shortest Path does not have enough Bandwidth
+On SHE1 router we can see the PCALC fail on the shortest path.
+
+	she1#sh deb
+
+	MPLS TE PATH:
+	  MPLS traffic-eng path error events
+	  MPLS traffic-eng path lookup events
+	  MPLS traffic-eng path spf events   
+    
+	*Mar 30 20:25:56.399: TE-PCALC: 66.66.66.65_199->66.66.66.69_66 {13}: Tunnel66->66.66.66.69 Path (get path area) [66.66.66.69]  (ospf 66  area 0)
+	*Mar 30 20:25:56.399: TE-PCALC:   bw 20000, min_bw 0, metric: 0
+	*Mar 30 20:25:56.399: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Mar 30 20:25:56.399: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.65
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 100000, prev_node(66.66.66.65)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(4)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.1.100.10
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 100000, prev_node(66.1.100.10)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(2)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.67
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: REJECT(bw available too small) ip_address 66.2.100.5 bw 10000 req 20000
+
+PCALC Rejected interface Eth0/2 [66.2.100.5] because of insufficient bandwidth
+
+	*Mar 30 20:25:56.399: 	rrr_pcalc_print_bw_values nbr_p = 0x48CFDB0 pri 7
+	*Mar 30 20:25:56.399: 	Global inprogress 0, Global avail 10000
+	*Mar 30 20:25:56.399: 	Sub-pool inprogress 0, Sub-pool avail 0
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.1
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.69 aw 200 min_bw 100000, prev_node(66.2.100.1)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(20)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.69:
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.2.100.2->0.0.0.0(admin_weight=200):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.2.100.1->0.0.0.0(admin_weight=200):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	num_hops 5, accumlated_aw 200, min_bw 100000
+	*Mar 30 20:25:56.399: TE-PCALC: Found path for P2MP TE dest 66.66.66.69; aw = 200
+
+PCALC has found shortest path to edge1 [66.66.66.69]
+
+	*Mar 30 20:25:56.399: TE-PCALC: 66.66.66.65_199->66.66.66.70_66 {13}: Tunnel66->66.66.66.70 Path (get path area) [66.66.66.70]  (ospf 66  area 0)
+	*Mar 30 20:25:56.399: TE-PCALC:   bw 20000, min_bw 0, metric: 0
+	*Mar 30 20:25:56.399: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Mar 30 20:25:56.399: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.65
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 100000, prev_node(66.66.66.65)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(4)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.1.100.10
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 100000, prev_node(66.1.100.10)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(2)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.67
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: REJECT(bw available too small) ip_address 66.2.100.5 bw 10000 req 20000
+	
+PCALC rejects same interface [eth0/2] when calculating SPF to edge2 [66.66.66.70]
+	
+	*Mar 30 20:25:56.399: 	rrr_pcalc_print_bw_values nbr_p = 0x48CFDB0 pri 7
+	*Mar 30 20:25:56.399: 	Global inprogress 0, Global avail 10000
+	*Mar 30 20:25:56.399: 	Sub-pool inprogress 0, Sub-pool avail 0
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.1
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.69 aw 200 min_bw 100000, prev_node(66.2.100.1)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(20)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.69
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.3.100.2 aw 300 min_bw 100000, prev_node(66.66.66.69)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.10
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.71 aw 200 min_bw 100000, prev_node(66.2.100.10)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(12)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 20:25:56.399: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.71
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.18 aw 300 min_bw 100000, prev_node(66.66.66.71)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(7)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 20:25:56.399: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.2.100.18
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: REJECT(max_bw too small) node 66.66.66.68, link 66.2.100.17 bw 10000
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.3.100.2
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: 66.66.66.70 aw 300 min_bw 100000, prev_node(66.3.100.2)
+	*Mar 30 20:25:56.399: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 20:25:56.399: 	node(11)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.70:
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.3.100.2->0.0.0.0(admin_weight=300):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.3.100.1->0.0.0.0(admin_weight=300):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.2.100.2->0.0.0.0(admin_weight=200):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.2.100.1->0.0.0.0(admin_weight=200):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	*Mar 30 20:25:56.399: TE-PCALC-PATH:	num_hops 7, accumlated_aw 300, min_bw 100000
+	*Mar 30 20:25:56.399: TE-PCALC: Found path for P2MP TE dest 66.66.66.70; aw = 300
+	*Mar 30 20:25:56.515: %LINEPROTO-5-UPDOWN: Line protocol on Interface Tunnel66, changed state to up
+	
+The path calculated from she1 to edge2 is via core -> edge1 -> edge2 as indicated in figure1
+	
+### Case1b: PCALC Re-Optimisation
+
+	she1#sh mpls tr tun det
+
+	P2P TUNNELS/LSPs:
+
+	P2MP TUNNELS:
+
+	Tunnel66    (p2mp),  Admin: up, Oper: up
+	  Name: SHE1->edge1,edge2 -> DYN   
+
+	  Tunnel66 Destinations Information:
+
+	    Destination (1/2): 66.66.66.69
+	      State: Up, UpTime: 00:07:15
+	      Sub-LSP: TunID: 66, LSP ID: 224, P2MP Subgroup ID: 1
+	      Path Set: 0x98000016
+	      OutLabel : Ethernet0/2, 19
+	      Next Hop : 66.1.100.10
+
+	      Last Failure: 
+	        Path Option: 10
+	        LSP ID: 208
+	        Last Error: CTRL:: pcalc failed to find a path for 66.66.66.69
+
+	    Destination (2/2): 66.66.66.70
+	      State: Up, UpTime: 00:02:15
+	      Sub-LSP: TunID: 66, LSP ID: 224, P2MP Subgroup ID: 3
+	      Path Set: 0x98000016
+	      OutLabel : Ethernet0/2, 19
+	      Next Hop : 66.1.100.10
+
+	      Last Failure: 
+	        Path Option: 10
+	        LSP ID: 224
+	        Last Error: RSVP:: Path Error from 66.1.100.10: Policy control failure (code 2, value 5, flags 0)
+	
+Note: Policy failure on shortest path
+
+	    Summary: Destinations: 2 [Up: 2, Proceeding: 0, Down: 0 ]
+	      [destination list name: P2MP-DYN-TO-EDGES]
+
+	  History:
+	    Tunnel:
+	      Time since created: 13 hours, 34 minutes
+	      Time since path change: 7 minutes, 13 seconds
+	      Number of LSP IDs (Tun_Instances) used: 224
+	    Current LSP: [ID: 224]
+	      Uptime: 7 minutes, 16 seconds
+	      Selection: reoptimization
+	    Prior LSP: [ID: 223]
+	    Tunnel type does not support history
+
+	  Tunnel66 LSP Information:
+	    Configured LSP Parameters:
+	      Bandwidth: 20000    kbps (Global)  Priority: 7  7   Affinity: 0x0/0xFFFF
+	      Metric Type: TE (default)
+	      Protection Desired: none
+
+	  Session Information
+	    Source: 66.66.66.65, TunID: 66
+
+	    LSPs
+	      ID: 224 (Current), Path-Set ID: 0x98000016
+	        Sub-LSPs: 2, Up: 2, Proceeding: 0, Down: 0
+	        State: up
+	        Cumulative Path Weight: 500
+
+	        Sub-LSP (1/2): Destination 66.66.66.69
+	          LSP ID: 224, P2MP ID: 66
+	          P2MP Subgroup ID: 1, P2MP Subgroup Origin: 66.66.66.65
+	          State: Up
+	          Up Time: 7 minutes, 16 seconds
+	          Path Information: 
+	            Option: 10, dynamic
+	            Path Weight: 200
+	            Calculated Path: 66.1.100.9 66.1.100.10 66.2.100.1 66.2.100.2 
+	                              66.66.66.69 
+	          Forwarding Information: 
+	            Path Set: 0x98000016
+	            OutLabel : Ethernet0/2, 19
+	            Next Hop : 66.1.100.10
+
+	        Sub-LSP (2/2): Destination 66.66.66.70
+	          LSP ID: 224, P2MP ID: 66
+	          P2MP Subgroup ID: 3, P2MP Subgroup Origin: 66.66.66.65
+	          State: Up
+	          Up Time: 2 minutes, 16 seconds
+	          Path Information: 
+	            Option: 10, dynamic
+	            Path Weight: 300
+	            Calculated Path: 66.1.100.9 66.1.100.10 66.2.100.1 66.2.100.2 
+	                              66.3.100.1 66.3.100.2 66.66.66.70 
+	
+	Note: Via non-shortest path
+	
+	          Forwarding Information: 
+	            Path Set: 0x98000016
+	            OutLabel : Ethernet0/2, 19
+	            Next Hop : 66.1.100.10
+
+	      Total LSPs: 1
+
+	P2MP SUB-LSPS:
+
+	 LSP: Source: 66.66.66.65, TunID: 66, LSPID: 224
+	     P2MP ID: 66, Subgroup Originator: 66.66.66.65
+	     Name: SHE1->edge1,edge2 -> DYN
+	     Bandwidth: 20000, Global Pool
+
+	  Sub-LSP to 66.66.66.69, P2MP Subgroup ID: 1, Role: head
+	  Path-Set ID: 0x98000016
+	    OutLabel : Ethernet0/2, 19
+	    Next Hop : 66.1.100.10
+	    Explicit Route: 66.1.100.10 66.2.100.1 66.2.100.2 66.66.66.69
+	    Record   Route (Path):  NONE
+	    Record   Route (Resv):  NONE
+
+	  Sub-LSP to 66.66.66.70, P2MP Subgroup ID: 3, Role: head
+	  Path-Set ID: 0x98000016
+	    OutLabel : Ethernet0/2, 19
+	    Next Hop : 66.1.100.10
+	    Explicit Route: 66.1.100.10 66.2.100.1 66.2.100.2 66.3.100.1 
+	                    66.3.100.2 66.66.66.70 
+	    Record   Route (Path):  NONE
+	    Record   Route (Resv):  NONE
+
+Change the bandwidth back to 100Mbps on core eth0/2
+
+	core1#conf t
+	Enter configuration commands, one per line.  End with CNTL/Z.
+	core1(config)#int eth 0/2        
+	core1(config-if)#ip rsvp band 100000
+	
+	
+	Mar 31 08:11:43.671: TE-PCALC: 66.66.66.65_236->66.66.66.70_66 {13}: Tunnel66->66.66.66.70 Path (modify bandwidth) [66.66.66.70]  (ospf 66  area 0)
+	Mar 31 08:11:43.671: TE-PCALC:   bw 20000, min_bw 80000, metric: 500
+	Mar 31 08:11:43.671: TE-PCALC:   setup_pri 7, hold_pri 7
+	Mar 31 08:11:43.671: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	Mar 31 08:11:43.671: Adding  bw 20000 to tbd_bw_avail database
+	Mar 31 08:11:43.671: rrr_pcalc_mod_bandwidth: hoplist dest 66.66.66.69
+	Mar 31 08:11:43.671:     66.66.66.65: 66.1.100.9
+	Mar 31 08:11:43.671: 	Adding 20000 to global tdb_bw_avail pool on link 66.1.100.9, hop_gen 0 link_gen 221 in forward link
+	Mar 31 08:11:43.671: 	rrr_pcalc_print_bw_values nbr_p = 0x48854A0 pri 7
+	Mar 31 08:11:43.671: 	Global inprogress 0, Global avail 80000
+	Mar 31 08:11:43.671: 	Sub-pool inprogress 0, Sub-pool avail 0
+	Mar 31 08:11:43.671:     66.66.66.67: 66.2.100.1
+	Mar 31 08:11:43.671: 	Adding 20000 to global tdb_bw_avail pool on link 66.2.100.1, hop_gen 0 link_gen 234 in forward link
+	Mar 31 08:11:43.671: 	rrr_pcalc_print_bw_values nbr_p = 0x484A938 pri 7
+	Mar 31 08:11:43.671: 	Global inprogress 0, Global avail 80000
+	Mar 31 08:11:43.671: 	Sub-pool inprogress 0, Sub-pool avail 0
+	Mar 31 08:11:43.671:     66.66.66.69: 66.66.66.69
+	Mar 31 08:11:43.671: rrr_pcalc_mod_bandwidth: hoplist dest 66.66.66.70
+	Mar 31 08:11:43.671:     66.66.66.65: 66.1.100.9
+	Mar 31 08:11:43.671: 	Adding 20000 to global tdb_bw_avail pool on link 66.1.100.9, hop_gen 0 link_gen 221 in forward link
+	Mar 31 08:11:43.671: 	rrr_pcalc_print_bw_values nbr_p = 0x48854A0 pri 7
+	Mar 31 08:11:43.671: 	Global inprogress 0, Global avail 80000
+	Mar 31 08:11:43.671: 	Sub-pool inprogress 0, Sub-pool avail 0
+	Mar 31 08:11:43.671:     66.66.66.67: 66.2.100.1
+	Mar 31 08:11:43.671: 	Adding 20000 to global tdb_bw_avail pool on link 66.2.100.1, hop_gen 0 link_gen 234 in forward link
+	Mar 31 08:11:43.671: 	rrr_pcalc_print_bw_values nbr_p = 0x484A938 pri 7
+	Mar 31 08:11:43.671: 	Global inprogress 0, Global avail 80000
+	Mar 31 08:11:43.671: 	Sub-pool inprogress 0, Sub-pool avail 0
+	Mar 31 08:11:43.671:     66.66.66.69: 66.3.100.1
+	Mar 31 08:11:43.671: 	Adding 20000 to global tdb_bw_avail pool on link 66.3.100.1, hop_gen 0 link_gen 233 in forward link
+	Mar 31 08:11:43.671: 	rrr_pcalc_print_bw_values nbr_p = 0x48D0FA8 pri 7
+	Mar 31 08:11:43.671: 	Global inprogress 0, Global avail 80000
+	Mar 31 08:11:43.671: 	Sub-pool inprogress 0, Sub-pool avail 0
+	Mar 31 08:11:43.671:     66.66.66.70: 66.66.66.70
+	Mar 31 08:11:43.671: TE-PCALC: 66.66.66.65_243->66.66.66.69_66 {13}: Tunnel66->66.66.66.69 Path (get path area) [66.66.66.69]  (ospf 66  area 0)
+	Mar 31 08:11:43.671: TE-PCALC:   bw 20000, min_bw 0, metric: 0
+	Mar 31 08:11:43.671: TE-PCALC:   setup_pri 7, hold_pri 7
+	Mar 31 08:11:43.671: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.65
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 80000, prev_node(66.66.66.65)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(4)=(aw=100, min_bw=80000, hops=1)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.1.100.10
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 80000, prev_node(66.1.100.10)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(2)=(aw=100, min_bw=80000, hops=1)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.67
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 80000, prev_node(66.66.66.67)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 80000, prev_node(66.66.66.67)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.6 aw 200 min_bw 80000, prev_node(66.66.66.67)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(15)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(19)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(16)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.6
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.70 aw 200 min_bw 80000, prev_node(66.2.100.6)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(11)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(19)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(16)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.70
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.14 aw 300 min_bw 80000, prev_node(66.66.66.70)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.3.100.2 aw 300 min_bw 80000, prev_node(66.66.66.70)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(19)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(16)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(8)=(aw=300, min_bw=80000, hops=3)
+	Mar 31 08:11:43.671: 	node(6)=(aw=300, min_bw=80000, hops=3)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.1
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.69 aw 200 min_bw 80000, prev_node(66.2.100.1)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(20)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(16)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(8)=(aw=300, min_bw=80000, hops=3)
+	Mar 31 08:11:43.671: 	node(6)=(aw=300, min_bw=80000, hops=3)
+	Mar 31 08:11:43.671: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.69:
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.2.100.2->0.0.0.0(admin_weight=200):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.2.100.1->0.0.0.0(admin_weight=200):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	num_hops 5, accumlated_aw 200, min_bw 80000
+	Mar 31 08:11:43.671: TE-PCALC: Found path for P2MP TE dest 66.66.66.69; aw = 200
+	Mar 31 08:11:43.671: TE-PCALC: 66.66.66.65_243->66.66.66.70_66 {13}: Tunnel66->66.66.66.70 Path (get path area) [66.66.66.70]  (ospf 66  area 0)
+	Mar 31 08:11:43.671: TE-PCALC:   bw 20000, min_bw 0, metric: 0
+	Mar 31 08:11:43.671: TE-PCALC:   setup_pri 7, hold_pri 7
+	Mar 31 08:11:43.671: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.65
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 80000, prev_node(66.66.66.65)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(4)=(aw=100, min_bw=80000, hops=1)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.1.100.10
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 80000, prev_node(66.1.100.10)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(2)=(aw=100, min_bw=80000, hops=1)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.67
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 80000, prev_node(66.66.66.67)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 80000, prev_node(66.66.66.67)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.6 aw 200 min_bw 80000, prev_node(66.66.66.67)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(15)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(19)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(16)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.2.100.6
+	Mar 31 08:11:43.671: TE-PCALC-SPF: 66.66.66.70 aw 200 min_bw 80000, prev_node(66.2.100.6)
+	Mar 31 08:11:43.671: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 31 08:11:43.671: 	node(11)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(19)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: 	node(16)=(aw=200, min_bw=80000, hops=2)
+	Mar 31 08:11:43.671: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.70:
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.2.100.6->0.0.0.0(admin_weight=200):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.2.100.5->0.0.0.0(admin_weight=200):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	Mar 31 08:11:43.671: TE-PCALC-PATH:	num_hops 5, accumlated_aw 200, min_bw 80000
+	Mar 31 08:11:43.671: TE-PCALC: Found path for P2MP TE dest 66.66.66.70; aw = 200
+	Mar 31 08:11:43.671: TE-PCALC-P2MP: Compare LSP tree: reopt -> num_paths 2, metric 400
+	Mar 31 08:11:43.671: TE-PCALC-P2MP:                   curr -> num_paths 2, metric 500
+	
+Note: Comparing repotimised PCALC with current and there is a difference
+
+	Mar 31 08:11:43.671: TE-PCALC-P2MP:new-dest: 66.66.66.69 metric: 200
+	Mar 31 08:11:43.671: TE-PCALC-P2MP:new-dest: 66.66.66.70 metric: 200
+	Mar 31 08:11:43.671: TE-PCALC-P2MP:old-dest: 66.66.66.69 metric: 200
+	Mar 31 08:11:43.671: TE-PCALC-P2MP:old-dest: 66.66.66.70 metric: 300
+	Mar 31 08:11:43.671: TE-PCALC-P2MP: all curr destinations exist in reopt LSP tree
+	she1#
+	Mar 31 08:11:43.671: TE-PCALC-P2MP: switch to reopt with same dests; tiebreaker = ON
+	
+Note: Change to reoptimised tree
+	
+	she1#sh mpls tr tun det
+
+	P2P TUNNELS/LSPs:
+
+	P2MP TUNNELS:
+
+	Tunnel66    (p2mp),  Admin: up, Oper: up
+	  Name: SHE1->edge1,edge2 -> DYN   
+
+	  Tunnel66 Destinations Information:
+
+	    Destination (1/2): 66.66.66.69
+	      State: Up, UpTime: 00:00:10
+	      Sub-LSP: TunID: 66, LSP ID: 236, P2MP Subgroup ID: 1
+	      Path Set: 0x56000017
+	      OutLabel : Ethernet0/2, 16
+	      Next Hop : 66.1.100.10
+
+	      Last Failure: 
+	        Path Option: 10
+	        LSP ID: 208
+	        Last Error: CTRL:: pcalc failed to find a path for 66.66.66.69
+
+	    Destination (2/2): 66.66.66.70
+	      State: Up, UpTime: 00:00:12
+	      Sub-LSP: TunID: 66, LSP ID: 236, P2MP Subgroup ID: 2
+	      Path Set: 0x56000017
+	      OutLabel : Ethernet0/2, 16
+	      Next Hop : 66.1.100.10
+
+	      Last Failure: 
+	        Path Option: 10
+	        LSP ID: 224
+	        Removal Trigger: reoptimization completed
+	        Last Error: RSVP:: Path Error from 66.1.100.10: Policy control failure (code 2, value 5, flags 0)
+
+	    Summary: Destinations: 2 [Up: 2, Proceeding: 0, Down: 0 ]
+	      [destination list name: P2MP-DYN-TO-EDGES]
+
+	  History:
+	    Tunnel:
+	      Time since created: 13 hours, 39 minutes
+	      Time since path change: 9 seconds
+	      Number of LSP IDs (Tun_Instances) used: 236
+	    Current LSP: [ID: 236]
+	      Uptime: 12 seconds
+	      Selection: reoptimization
+	    Prior LSP: [ID: 224]
+	    Tunnel type does not support history
+
+	  Tunnel66 LSP Information:
+	    Configured LSP Parameters:
+	      Bandwidth: 20000    kbps (Global)  Priority: 7  7   Affinity: 0x0/0xFFFF
+	      Metric Type: TE (default)
+	      Protection Desired: none
+
+	  Session Information
+	    Source: 66.66.66.65, TunID: 66
+
+	    LSPs
+	      ID: 236 (Current), Path-Set ID: 0x56000017
+	        Sub-LSPs: 2, Up: 2, Proceeding: 0, Down: 0
+	        State: up
+	        Cumulative Path Weight: 400
+
+	        Sub-LSP (1/2): Destination 66.66.66.69
+	          LSP ID: 236, P2MP ID: 66
+	          P2MP Subgroup ID: 1, P2MP Subgroup Origin: 66.66.66.65
+	          State: Up
+	          Up Time: 23 seconds
+	          Path Information: 
+	            Option: 10, dynamic
+	            Path Weight: 200
+	            Calculated Path: 66.1.100.9 66.1.100.10 66.2.100.1 66.2.100.2 
+	                              66.66.66.69 
+	          Forwarding Information: 
+	            Path Set: 0x56000017
+	            OutLabel : Ethernet0/2, 16
+	            Next Hop : 66.1.100.10
+
+	        Sub-LSP (2/2): Destination 66.66.66.70
+	          LSP ID: 236, P2MP ID: 66
+	          P2MP Subgroup ID: 2, P2MP Subgroup Origin: 66.66.66.65
+	          State: Up
+	          Up Time: 25 seconds
+	          Path Information: 
+	            Option: 10, dynamic
+	            Path Weight: 200
+	            Calculated Path: 66.1.100.9 66.1.100.10 66.2.100.5 66.2.100.6 
+	                              66.66.66.70 
+	
+Note: Now via shortest path
+
+	          Forwarding Information: 
+	            Path Set: 0x56000017
+	            OutLabel : Ethernet0/2, 16
+	            Next Hop : 66.1.100.10
+
+	      Total LSPs: 1
+
+	P2MP SUB-LSPS:
+
+	 LSP: Source: 66.66.66.65, TunID: 66, LSPID: 236
+	     P2MP ID: 66, Subgroup Originator: 66.66.66.65
+	     Name: SHE1->edge1,edge2 -> DYN
+	     Bandwidth: 20000, Global Pool
+
+	  Sub-LSP to 66.66.66.69, P2MP Subgroup ID: 1, Role: head
+	  Path-Set ID: 0x56000017
+	    OutLabel : Ethernet0/2, 16
+	    Next Hop : 66.1.100.10
+	    Explicit Route: 66.1.100.10 66.2.100.1 66.2.100.2 66.66.66.69 
+	    Record   Route (Path):  NONE
+	    Record   Route (Resv):  NONE
+
+	  Sub-LSP to 66.66.66.70, P2MP Subgroup ID: 2, Role: head
+	  Path-Set ID: 0x56000017
+	    OutLabel : Ethernet0/2, 16
+	    Next Hop : 66.1.100.10
+	    Explicit Route: 66.1.100.10 66.2.100.5 66.2.100.6 66.66.66.70 
+	    Record   Route (Path):  NONE
+	    Record   Route (Resv):  NONE
+	
+		### Configs
+		#### she1
+
+			mpls traffic-eng destination list name P2MP-DYN-TO-EDGES
+			 ip 66.66.66.69 path-option 10 dynamic
+			 ip 66.66.66.70 path-option 10 dynamic
+			!
+			interface Tunnel66
+			 description SHE1->edge1,edge2 -> DYN
+			 ip unnumbered Loopback66
+			 ip pim passive
+			 ip igmp static-group 239.232.7.7 source 10.1.1.90
+			 tunnel mode mpls traffic-eng point-to-multipoint
+			 tunnel destination list mpls traffic-eng name P2MP-DYN-TO-EDGES
+			 tunnel mpls traffic-eng priority 7 7
+			 tunnel mpls traffic-eng bandwidth 20000
+			!         
+			interface Loopback66
+			 ip address 66.66.66.65 255.255.255.255
+			!
+			interface Ethernet0/2
+			 bandwidth 100000
+			 ip address 66.1.100.9 255.255.255.252
+			 mpls ip
+			 mpls traffic-eng tunnels
+			 mpls traffic-eng administrative-weight 100
+			 ip rsvp bandwidth 100000
+			!she1#sh mpls traffic-eng link-management sum 
+			System Information::
+			    Links Count:          2
+			    Flooding System:      enabled
+			IGP Area ID::  ospf 66  area 0
+			    Flooding Protocol:    OSPF
+			    Flooding Status:      data flooded
+			    Periodic Flooding:    enabled (every 180 seconds)
+			    Flooded Links:        1
+			    IGP System ID:        66.66.66.65
+			    MPLS TE Router ID:    66.66.66.65
+			    Neighbors:            1
+			Link ID::  Et0/2 (66.1.100.9)
+			    Local Intfc ID:         3
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 20% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded, allocated
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+
+		#### core
+
+			core1#sh mpls traffic-eng link-management summary 
+			System Information::
+			    Links Count:          5
+			    Flooding System:      enabled
+			IGP Area ID::  ospf 66  area 0
+			    Flooding Protocol:    OSPF
+			    Flooding Status:      data flooded
+			    Periodic Flooding:    enabled (every 180 seconds)
+			    Flooded Links:        4
+			    IGP System ID:        66.66.66.67
+			    MPLS TE Router ID:    66.66.66.67
+			    Neighbors:            4
+			Link ID::  Et0/1 (66.2.100.1)
+			    Local Intfc ID:         2
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 20% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded, allocated
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+			Link ID::  Et0/2 (66.2.100.5)
+			    Local Intfc ID:         3
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    10000 kbits/sec (reserved: 0% in, 0% out)
+
+		here is the important bandwidth constraint.
+
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+			Link ID::  Et0/3 (66.2.100.9)
+			    Local Intfc ID:         4
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 0% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+			Link ID::  Et1/0 (66.1.100.10)
+			    Local Intfc ID:         5
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 0% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded, allocated
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+		#### edge1
+
+			edge1#sh mpls tr tun sum   
+			Signalling Summary:
+			    LSP Tunnels Process:            running
+			    Passive LSP Listener:           running
+			    RSVP Process:                   running
+			    Forwarding:                     enabled
+			    Periodic reoptimization:        every 3600 seconds, next in 2317 seconds
+			    Periodic FRR Promotion:         Not Running
+			    Periodic auto-bw collection:    every 300 seconds, next in 217 seconds
+			    P2P:
+			      Head: 0 interfaces,   0 active signalling attempts, 0 established
+			            0 activations,  0 deactivations
+			            0 SSO recovery attempts, 0 SSO recovered
+			      Midpoints: 0, Tails: 0
+
+			    P2MP:
+			      Head: 0 interfaces,   0 active signalling attempts, 0 established
+			            0 activations,  0 deactivations
+			            SSO: Unsupported
+			      Midpoints: 1, Tails: 1
+
+			edge1#sh mpls tr link sum
+			System Information::
+			    Links Count:          2
+			    Flooding System:      enabled
+			IGP Area ID::  ospf 66  area 0
+			    Flooding Protocol:    OSPF
+			    Flooding Status:      data flooded
+			    Periodic Flooding:    enabled (every 180 seconds)
+			    Flooded Links:        2
+			    IGP System ID:        66.66.66.69
+			    MPLS TE Router ID:    66.66.66.69
+			    Neighbors:            2
+			Link ID::  Et0/0 (66.2.100.2)
+			    Local Intfc ID:         1
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 0% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded, allocated
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+			Link ID::  Et0/1 (66.3.100.1)
+			    Local Intfc ID:         2
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 20% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded, allocated
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+
+		####edge2
+
+			edge2#sh mpls tr link sum
+			System Information::
+			    Links Count:          3
+			    Flooding System:      enabled
+			IGP Area ID::  ospf 66  area 0
+			    Flooding Protocol:    OSPF
+			    Flooding Status:      data flooded
+			    Periodic Flooding:    enabled (every 180 seconds)
+			    Flooded Links:        3
+			    IGP System ID:        66.66.66.70
+			    MPLS TE Router ID:    66.66.66.70
+			    Neighbors:            3
+			Link ID::  Et0/0 (66.2.100.6)
+			    Local Intfc ID:         1
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 0% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+			Link ID::  Et0/2 (66.3.100.2)
+			    Local Intfc ID:         3
+			    Link Status:
+			      SRLGs:                None
+			      Intfc Switching Capability Descriptors:  
+			         Default:           Intfc Switching Cap psc1, Encoding ethernet
+			      Link Label Type:      Packet
+			      Physical Bandwidth:   100000 kbits/sec
+			      Max Res Global BW:    100000 kbits/sec (reserved: 0% in, 0% out)
+			      Max Res Sub BW:       0 kbits/sec (reserved: 100% in, 100% out)
+			      MPLS TE Link State:   MPLS TE on, RSVP on, admin-up, flooded, allocated
+			      Inbound Admission:    reject-huge
+			      Outbound Admission:   allow-if-room
+			      Admin. Weight:        100 (configured)
+			      IGP Neighbor Count:   1
+
+### Case 2: Shortest Path does not have compliant affinity
+
+Using Figure 2 we will check PCALC takes into account affinity bits to not route via shortest path. (remember resource-class mask => 1=care/0=don't care, and default resource-class mask =0x0000FFFF)
+
+![IOU BCBPC-aff](images/IOS-PCALC-aff.png "Affinity Constraint Based Path Computation")   
+
+	*Mar 30 21:17:56.999: TE-PCALC: 66.66.66.65_211->66.66.66.69_66 {13}: Tunnel66->66.66.66.69 Path (get path area) [66.66.66.69]  (ospf 66  area 0)
+	*Mar 30 21:17:56.999: TE-PCALC:   bw 10000, min_bw 0, metric: 0
+	*Mar 30 21:17:56.999: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Mar 30 21:17:56.999: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFF
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.65
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 100000, prev_node(66.66.66.65)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(4)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.1.100.10
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 100000, prev_node(66.1.100.10)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(2)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.67
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: REJ(no attribute flags) node 66.66.66.67, link 66.2.100.5
+
+Link eth0/2 on core router affinty mask isn't compliant
+
+	*Mar 30 21:17:56.999: 	tunnel_affinity_bits 0x0, 
+	*Mar 30 21:17:56.999: 	tunnel_affinity_mask 0xFF, 
+	*Mar 30 21:17:56.999: 	link_attribute_flags 0x10
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.1
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.69 aw 200 min_bw 100000, prev_node(66.2.100.1)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(20)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.69:
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.2.100.2->0.0.0.0(admin_weight=200):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.2.100.1->0.0.0.0(admin_weight=200):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	num_hops 5, accumlated_aw 200, min_bw 100000
+	*Mar 30 21:17:56.999: TE-PCALC: Found path for P2MP TE dest 66.66.66.69; aw = 200
+	*Mar 30 21:17:56.999: TE-PCALC: 66.66.66.65_211->66.66.66.70_66 {13}: Tunnel66->66.66.66.70 Path (get path area) [66.66.66.70]  (ospf 66  area 0)
+	*Mar 30 21:17:56.999: TE-PCALC:   bw 10000, min_bw 0, metric: 0
+	*Mar 30 21:17:56.999: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Mar 30 21:17:56.999: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFF
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.65
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 100000, prev_node(66.66.66.65)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(4)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.1.100.10
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 100000, prev_node(66.1.100.10)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(2)=(aw=100, min_bw=100000, hops=1)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.67
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: REJ(no attribute flags) node 66.66.66.67, link 66.2.100.5
+	
+Rejected link [e0/2] because it had incorrect affinity bits
+
+	*Mar 30 21:17:56.999: 	tunnel_affinity_bits 0x0, 
+	*Mar 30 21:17:56.999: 	tunnel_affinity_mask 0xFF, 
+	*Mar 30 21:17:56.999: 	link_attribute_flags 0x10
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.1
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.69 aw 200 min_bw 100000, prev_node(66.2.100.1)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(20)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.69
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.3.100.2 aw 300 min_bw 100000, prev_node(66.66.66.69)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.10
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.71 aw 200 min_bw 100000, prev_node(66.2.100.10)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(12)=(aw=200, min_bw=100000, hops=2)
+	*Mar 30 21:17:56.999: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.71
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.18 aw 300 min_bw 100000, prev_node(66.66.66.71)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(7)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.18
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.68 aw 300 min_bw 100000, prev_node(66.2.100.18)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(9)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.68
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.1.100.6 aw 400 min_bw 10000, prev_node(66.66.66.68)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.14 aw 400 min_bw 10000, prev_node(66.66.66.68)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: 	node(6)=(aw=400, min_bw=10000, hops=4)
+	*Mar 30 21:17:56.999: 	node(13)=(aw=400, min_bw=10000, hops=4)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.3.100.2
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.70 aw 300 min_bw 100000, prev_node(66.3.100.2)
+	*Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	*Mar 30 21:17:56.999: 	node(11)=(aw=300, min_bw=100000, hops=3)
+	*Mar 30 21:17:56.999: 	node(6)=(aw=400, min_bw=10000, hops=4)
+	*Mar 30 21:17:56.999: 	node(13)=(aw=400, min_bw=10000, hops=4)
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.70:
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.3.100.2->0.0.0.0(admin_weight=300):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.3.100.1->0.0.0.0(admin_weight=300):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.2.100.2->0.0.0.0(admin_weight=200):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.2.100.1->0.0.0.0(admin_weight=200):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	*Mar 30 21:17:56.999: TE-PCALC-PATH:	num_hops 7, accumlated_aw 300, min_bw 100000
+	*Mar 30 21:17:56.999: TE-PCALC: Found path for P2MP TE dest 66.66.66.70; aw = 300
+	*Mar 30 21:17:57.091: %LINEPROTO-5-UPDOWN: Line protocol on Interface Tunnel66, changed state to up
+	
+### Case 2b: PCALC Re-optimisation
+Using Figure 2 link [e0/2] on core has affinity set at 0x0 with mask 0xf so that the sub-lSP between she1 and edge2 is routed via this link. We will change the link affinity on this interface and see that the LSP gets rerouted
+
+	core1(config-if)#int eth 0/2
+	core1(config-if)#mpls traffic-eng attribute-flags 0x00
+	core1(config-if)#
+	.Mar 31 08:21:43.782: TE-PCALC: 66.66.66.65_249->66.66.66.70_66 {13}: Tunnel66->66.66.66.70 Path (modify bandwidth) [66.66.66.70]  (ospf 66  area 0)
+	.Mar 31 08:21:43.782: TE-PCALC:   bw 0, min_bw 100000, metric: 500
+	.Mar 31 08:21:43.782: TE-PCALC:   setup_pri 7, hold_pri 7
+	.Mar 31 08:21:43.782: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFF
+	.Mar 31 08:21:43.782: Adding  bw 0 to tbd_bw_avail database
+	.Mar 31 08:21:43.782: rrr_pcalc_mod_bandwidth: hoplist dest 66.66.66.69
+	.Mar 31 08:21:43.782:     66.66.66.65: 66.1.100.9
+	.Mar 31 08:21:43.782: 	Adding 0 to global tdb_bw_avail pool on link 66.1.100.9, hop_gen 0 link_gen 237 in forward link
+	.Mar 31 08:21:43.782: 	rrr_pcalc_print_bw_values nbr_p = 0x481CA98 pri 7
+	.Mar 31 08:21:43.782: 	Global inprogress 0, Global avail 100000
+	.Mar 31 08:21:43.782: 	Sub-pool inprogress 0, Sub-pool avail 0
+	.Mar 31 08:21:43.782:     66.66.66.67: 66.2.100.1
+	.Mar 31 08:21:43.782: 	Adding 0 to global tdb_bw_avail pool on link 66.2.100.1, hop_gen 0 link_gen 241 in forward link
+	.Mar 31 08:21:43.782: 	rrr_pcalc_print_bw_values nbr_p = 0x484A938 pri 7
+	.Mar 31 08:21:43.782: 	Global inprogress 0, Global avail 100000
+	.Mar 31 08:21:43.782: 	Sub-pool inprogress 0, Sub-pool avail 0
+	.Mar 31 08:21:43.782:     66.66.66.69: 66.66.66.69
+	.Mar 31 08:21:43.782: rrr_pcalc_mod_bandwidth: hoplist dest 66.66.66.70
+	.Mar 31 08:21:43.782:     66.66.66.65: 66.1.100.9
+	.Mar 31 08:21:43.782: 	Adding 0 to global tdb_bw_avail pool on link 66.1.100.9, hop_gen 0 link_gen 237 in forward link
+	.Mar 31 08:21:43.782: 	rrr_pcalc_print_bw_values nbr_p = 0x481CA98 pri 7
+	.Mar 31 08:21:43.782: 	Global inprogress 0, Global avail 100000
+	.Mar 31 08:21:43.782: 	Sub-pool inprogress 0, Sub-pool avail 0
+	.Mar 31 08:21:43.782:     66.66.66.67: 66.2.100.1
+	.Mar 31 08:21:43.782: 	Adding 0 to global tdb_bw_avail pool on link 66.2.100.1, hop_gen 0 link_gen 241 in forward link
+	.Mar 31 08:21:43.782: 	rrr_pcalc_print_bw_values nbr_p = 0x484A938 pri 7
+	.Mar 31 08:21:43.782: 	Global inprogress 0, Global avail 100000
+	.Mar 31 08:21:43.782: 	Sub-pool inprogress 0, Sub-pool avail 0
+	.Mar 31 08:21:43.782:     66.66.66.69: 66.3.100.1
+	.Mar 31 08:21:43.782: 	Adding 0 to global tdb_bw_avail pool on link 66.3.100.1, hop_gen 0 link_gen 236 in forward link
+	.Mar 31 08:21:43.782: 	rrr_pcalc_print_bw_values nbr_p = 0x4886688 pri 7
+	.Mar 31 08:21:43.782: 	Global inprogress 0, Global avail 100000
+	.Mar 31 08:21:43.782: 	Sub-pool inprogress 0, Sub-pool avail 0
+	.Mar 31 08:21:43.782:     66.66.66.70: 66.66.66.70
+	.Mar 31 08:21:43.782: TE-PCALC: 66.66.66.65_254->66.66.66.69_66 {13}: Tunnel66->66.66.66.69 Path (get path area) [66.66.66.69]  (ospf 66  area 0)
+	.Mar 31 08:21:43.782: TE-PCALC:   bw 0, min_bw 0, metric: 0
+	.Mar 31 08:21:43.782: TE-PCALC:   setup_pri 7, hold_pri 7
+	.Mar 31 08:21:43.782: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFF
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.65
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 100000, prev_node(66.66.66.65)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(4)=(aw=100, min_bw=100000, hops=1)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.1.100.10
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 100000, prev_node(66.1.100.10)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(2)=(aw=100, min_bw=100000, hops=1)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.67
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.6 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(15)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.6
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.70 aw 200 min_bw 100000, prev_node(66.2.100.6)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(11)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.70
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.14 aw 300 min_bw 100000, prev_node(66.66.66.70)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.3.100.2 aw 300 min_bw 100000, prev_node(66.66.66.70)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	.Mar 31 08:21:43.782: 	node(6)=(aw=300, min_bw=100000, hops=3)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.1
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.69 aw 200 min_bw 100000, prev_node(66.2.100.1)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(20)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(8)=(aw=300, min_bw=100000, hops=3)
+	.Mar 31 08:21:43.782: 	node(6)=(aw=300, min_bw=100000, hops=3)
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.69:
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.2.100.2->0.0.0.0(admin_weight=200):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.2.100.1->0.0.0.0(admin_weight=200):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	num_hops 5, accumlated_aw 200, min_bw 100000
+	.Mar 31 08:21:43.782: TE-PCALC: Found path for P2MP TE dest 66.66.66.69; aw = 200
+	.Mar 31 08:21:43.782: TE-PCALC: 66.66.66.65_254->66.66.66.70_66 {13}: Tunnel66->66.66.66.70 Path (get path area) [66.66.66.70]  (ospf 66  area 0)
+	.Mar 31 08:21:43.782: TE-PCALC:   bw 0, min_bw 0, metric: 0
+	.Mar 31 08:21:43.782: TE-PCALC:   setup_pri 7, hold_pri 7
+	.Mar 31 08:21:43.782: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFF
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.65
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 100000, prev_node(66.66.66.65)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(4)=(aw=100, min_bw=100000, hops=1)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.1.100.10
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 100000, prev_node(66.1.100.10)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(2)=(aw=100, min_bw=100000, hops=1)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.67
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.6 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(15)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.2.100.6
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: 66.66.66.70 aw 200 min_bw 100000, prev_node(66.2.100.6)
+	.Mar 31 08:21:43.782: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	.Mar 31 08:21:43.782: 	node(11)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(19)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: 	node(16)=(aw=200, min_bw=100000, hops=2)
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.70:
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.2.100.6->0.0.0.0(admin_weight=200):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.2.100.5->0.0.0.0(admin_weight=200):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	.Mar 31 08:21:43.782: TE-PCALC-PATH:	num_hops 5, accumlated_aw 200, min_bw 100000
+	.Mar 31 08:21:43.782: TE-PCALC: Found path for P2MP TE dest 66.66.66.70; aw = 200
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP: Compare LSP tree: reopt -> num_paths 2, metric 400
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP:                   curr -> num_paths 2, metric 500
+	
+Note: Re-optimised PCALC has shorter path than current switch to new path
+
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP:new-dest: 66.66.66.69 metric: 200
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP:new-dest: 66.66.66.70 metric: 200
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP:old-dest: 66.66.66.69 metric: 200
+	she1#
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP:old-dest: 66.66.66.70 metric: 300
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP: all curr destinations exist in reopt LSP tree
+	.Mar 31 08:21:43.782: TE-PCALC-P2MP: switch to reopt with same dests; tiebreaker = ON
+
+
+### Configs
+#### she1
+	interface Tunnel66
+	 description SHE1->edge1,edge2 -> DYN
+	 ip unnumbered Loopback66
+	 ip pim passive
+	 ip igmp static-group 239.232.7.7 source 10.1.1.90
+	 tunnel mode mpls traffic-eng point-to-multipoint
+	 tunnel destination list mpls traffic-eng name P2MP-DYN-TO-EDGES
+	 tunnel mpls traffic-eng affinity 0x0 mask 0xFF
+	
+#### core
+	interface Ethernet0/2
+	 bandwidth 100000
+	 ip address 66.2.100.5 255.255.255.252
+	 mpls ip
+	 mpls traffic-eng tunnels
+	 mpls traffic-eng attribute-flags 0x10
+	 mpls traffic-eng administrative-weight 100
+	 ip rsvp bandwidth 100000
+
+### Case 3: Shortest Path different TE-specific link metric
+	she1(config-if)#tunnel mpls traffic-eng path-selection metric ? 
+	  igp  Use IGP Metric
+	  te   Use TE Metric
+
+	she1(config-if)#tunnel mpls traffic-eng path-selection metric te 
+	% Not valid in point-to-multipoint submode of Label Switching mode
+	
+##Appendix PCALC Algorithim
+PCALC algoritm (from Cisco Systems):
+
+ * Prune off the links that do not have the required BW
+ * Prune off the links that do not have the required affinity
+ * Run a dijkstra on the remaining topology, optimised based on the IGP metric (or RRR metric if configured)
+ * If several paths are still available, then do the following to ultimately select a single path
+   * choose the path with the biggest leftover Bandwidth V
+     (V of a path is the minimum of the value L computed for each link. L on a link is the available bw at the required priority.)
+     (This rule helps load balancing tunnels on various paths)
+   * If several paths are still available, then select the path with the smallest number of hops
+   * If several paths are still available, select any one.

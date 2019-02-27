@@ -1,0 +1,35 @@
+	Mar 30 21:17:56.999:	tunnel_affinity_bits 0x0, 
+	Mar 30 21:17:56.999: 	tunnel_affinity_mask 0xFF, 
+	Mar 30 21:17:56.999: 	link_attribute_flags 0x10
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.1 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 30 21:17:56.999: 		   node(19)=(aw=200, min_bw=100000, hops=2)
+	Mar 30 21:17:56.999: 		   node(16)=(aw=200, min_bw=100000, hops=2)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.1
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.69 aw 200 min_bw 100000, prev_node(66.2.100.1)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 30 21:17:56.999: 		   node(20)=(aw=200, min_bw=100000, hops=2)
+	Mar 30 21:17:56.999: 		   node(16)=(aw=200, min_bw=100000, hops=2)
+	Mar 30 21:17:56.999: TE-PCALC-PATH:Path from 66.66.66.65 -> 66.66.66.69:
+	Mar 30 21:17:56.999: TE-PCALC-PATH:	66.2.100.2->0.0.0.0(admin_weight=200):
+	Mar 30 21:17:56.999: TE-PCALC-PATH:	66.2.100.1->0.0.0.0(admin_weight=200):
+	Mar 30 21:17:56.999: TE-PCALC-PATH:	66.1.100.10->0.0.0.0(admin_weight=100):
+	Mar 30 21:17:56.999: TE-PCALC-PATH:	66.1.100.9->0.0.0.0(admin_weight=100):
+	Mar 30 21:17:56.999: TE-PCALC-PATH:	num_hops 5, accumlated_aw 200, min_bw 100000
+	Mar 30 21:17:56.999: TE-PCALC: Found path for P2MP TE dest 66.66.66.69; aw = 200
+	Mar 30 21:17:56.999: TE-PCALC: 66.66.66.65_211->66.66.66.70_66 {13}: Tunnel66->66.66.66.70 Path (get path area) [66.66.66.70]  (ospf 66  area 0)
+	Mar 30 21:17:56.999: TE-PCALC:   bw 10000, min_bw 0, metric: 0
+	Mar 30 21:17:56.999: TE-PCALC:   setup_pri 7, hold_pri 7
+	Mar 30 21:17:56.999: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFF
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.65 aw 0 min_bw 18446744073709551615, prev_node(NULL)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.65
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.1.100.10 aw 100 min_bw 100000, prev_node(66.66.66.65)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 30 21:17:56.999: 		   node(4)=(aw=100, min_bw=100000, hops=1)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.1.100.10
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.67 aw 100 min_bw 100000, prev_node(66.1.100.10)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: rrr_pcalc_dump_tentitive list:
+	Mar 30 21:17:56.999: 		   node(2)=(aw=100, min_bw=100000, hops=1)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.66.66.67
+	Mar 30 21:17:56.999: TE-PCALC-SPF: 66.2.100.10 aw 200 min_bw 100000, prev_node(66.66.66.67)
+	Mar 30 21:17:56.999: TE-PCALC-SPF: REJ(no attribute flags) node 66.66.66.67, link

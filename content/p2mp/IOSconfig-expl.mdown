@@ -1,0 +1,191 @@
+# IOS P2MP Config Explanations
+
+I used this IOU setup.
+![IOU Setup](images/P2MP-IOUlab.png)
+
+## P2MP Tunnel Headend Setup
+Routers she1 (.65) and she2 (.66) are the tunnel headends. Their config consists of configuring the MPLS TE virtual tunnels and applying where the destination endpoints are for these tunnels (either dynamically or explicitly). Normal MPLS TE is configured for the IGP and multicast routing (SSM in this example) is setup at the edges (i.e PIM doesn't need to run on the Core interfaces)
+
+### MPLS TE setup 
+Nothing special here just straight configuration of the IGP (ISIS or OSPF) for MPLS TE
+
+	hostname she2
+	!
+	ip cef
+	!
+	mpls traffic-eng tunnels
+	!
+	interface Loopback66
+	 ip address 66.66.66.66 255.255.255.255
+	!
+	interface Ethernet0/1
+	 description CONNECTION to CORE1
+	 bandwidth 10000
+	 ip address 66.1.100.1 255.255.255.252
+	 mpls ip
+	 mpls traffic-eng tunnels
+	 ip rsvp bandwidth 10000
+	!
+	interface Ethernet0/2
+	 description CONNECTION to CORE2
+	 bandwidth 10000
+	 ip address 66.1.100.5 255.255.255.252
+	 mpls ip
+	 mpls traffic-eng tunnels
+	 no keepalive
+	 ip rsvp bandwidth 10000
+	!
+	interface Ethernet0/3
+	 description CONNECTION to SHE1
+	 ip address 66.1.100.10 255.255.255.252
+	 mpls traffic-eng tunnels
+	 ip rsvp bandwidth 10000
+	!
+	router ospf 66
+	 router-id 66.66.66.66
+	 log-adjacency-changes
+	 passive-interface Ethernet0/0
+	 network 10.1.1.0 0.0.0.255 area 0
+	 network 66.0.0.0 0.255.255.255 area 0
+	 mpls traffic-eng router-id Loopback66
+	 mpls traffic-eng area 0
+	!        
+	mpls ldp router-id Loopback66
+
+### Multicast Setup 
+We are running SSM in this demo so normal config for this. The only important note is that core facing links don't run PIM. PIM will be transported over the P2MP TE links and therefore core doesnt need to know about PIM.
+
+	hostname she2
+	!
+	ip cef
+	!
+	ip multicast-routing 
+	no ip igmp ssm-map query dns
+	ip igmp ssm-map static 99 10.1.1.80
+	!
+	interface Ethernet0/0
+	 description CONNECTION to MCAST SRCS on REAL NETWORK
+	 bandwidth 10000
+	 ip address 10.1.1.200 255.255.255.0
+	 ip pim sparse-mode
+	 ip rsvp bandwidth 10000
+	!
+	ip pim ssm range 99
+	!
+	access-list 99 permit 239.232.0.0 0.0.255.255
+
+### P2MP Head Tunnel Configuration 
+P2MP tunnels are very similar to P2P tunnels where you have options for explicit and dynamic paths. Only differences (from P2P) is you configure the  `mode mpls traffic-eng point-to-multipoint ` and you set a  `destination list mpls traffic-eng name P2MP-DYN-EDGE-LIST` where you state how you get to the different tail end points - dynamically or explicity (where you will then need to configure a `explicit-path identifier`)
+Note the configuration of  `pim passive` on the tunnel interface as well as statically joining any groups to the tunnel interface.
+
+	hostname she2
+	!
+	mpls traffic-eng destination list name P2MP-DYN-EDGE-LIST
+	 ip 66.66.66.69 path-option 10 dynamic
+	 ip 66.66.66.70 path-option 10 dynamic
+	 ip 66.66.66.71 path-option 10 dynamic
+	!
+	mpls traffic-eng destination list name P2MP-EXPLICIT
+	 ip 66.66.66.69 path-option 10 explicit identifier 69 
+	!
+	ip explicit-path identifier 69 enable
+	 next-address 66.1.100.6
+	 next-address 66.2.100.14
+	 next-address 66.3.100.1
+	!       
+	interface Tunnel66
+	 description SHE2->edge1,edge2,edge3-DYN
+	 bandwidth 10000
+	 ip unnumbered Loopback66
+	 ip pim passive
+	 ip igmp static-group 239.232.2.2 source 10.1.1.80
+	 tunnel mode mpls traffic-eng point-to-multipoint
+	 tunnel destination list mpls traffic-eng name P2MP-DYN-EDGE-LIST
+	!
+	interface Tunnel99
+	 ip unnumbered Loopback66
+	 ip pim passive
+	 tunnel mode mpls traffic-eng point-to-multipoint
+	 tunnel destination list mpls traffic-eng name P2MP-EXPLICIT
+
+## P2MP Tunnel MidPoint Setup 
+There is no special configuration for the midpoints other tna setting up MPLS TE tunnels configuration for the IGP and the interfaces. The midpoints should  support P2MP tunnels if they are going to setup SUB-lSPs.
+Again PIM needs not to be configured in the Core
+
+	interface Ethernet0/1
+	 bandwidth 10000
+	 ip address 66.2.100.1 255.255.255.252
+	 mpls ip
+	 mpls traffic-eng tunnels
+	 mpls traffic-eng administrative-weight 100
+	 ip rsvp bandwidth 10000
+
+You can see which tunnels are using this as a midpoint.
+
+	core1#sh mpls tr tun
+
+	P2P TUNNELS/LSPs:
+
+	P2MP TUNNELS:
+
+	P2MP SUB-LSPS:
+
+	 LSP: Source: 66.66.66.66, TunID: 66, LSPID: 20
+	     P2MP ID: 66, Subgroup Originator: 66.66.66.66
+	     Name: SHE->edge1,edge2,edge3-DYN
+	     Bandwidth: 0, Global Pool
+
+	  Sub-LSP to 66.66.66.69, P2MP Subgroup ID: 1, Role: midpoint
+	  Path-Set ID: 0xBE000002
+	    InLabel  : Ethernet0/0, 17
+	    Prev Hop : 66.1.100.1
+	    OutLabel : Ethernet0/1, 21
+	    Next Hop : 66.2.100.2
+	    Explicit Route: 66.2.100.2 66.66.66.69 
+	    Record   Route (Path):  NONE
+	    Record   Route (Resv):  NONE
+
+## P2MP Tunnel Tailend Setup 
+At the tail-end we have standard MPLS TE Tunnel config plus multicast configuration at the edges (not in core) and a few special commands to map tunnel tails to edge PIM interfaces.
+### P2MP Tail Tunnel Configuration 
+You need to set the command  `ip multicast mpls traffic-eng` (I don't know why just to say multicast needs to look at virutal tail-end interfaces??). Then you need to setup the RPF check for the multicast soources to (if you have multiple tunnesl teminating) point back to correct head-end tunnel which is identified by its address (the loopback of the tunnel) on our edge2 router (.70) we have two head-end tunnels terminating form both SHE1(.65) and SHE2(.66). We therefore dictate that the mcast source 10.1.1.90 will be tranmitting via SHE1's tunnel and the mcast source 10.1.1.80 will be transmitting via SHE2's tunnel via the `ip mroute` static command
+
+	interface Ethernet0/3
+	 ip address 66.99.2.1 255.255.255.0
+	 ip pim sparse-mode
+	 ip igmp version 3
+	!         
+	ip multicast mpls traffic-eng
+	ip multicast mpls source Loopback66
+	!
+	ip mroute 10.1.1.80 255.255.255.255 66.66.66.66
+	ip mroute 10.1.1.90 255.255.255.255 66.66.66.65
+
+
+We can see form the `sh ip mroute ` command that the different (S,G) have different RPF neighbours
+
+	edge2#sh ip mroute
+	IP Multicast Routing Table
+	Flags: D - Dense, S - Sparse, B - Bidir Group, s - SSM Group, C - Connected,
+	       L - Local, P - Pruned, R - RP-bit set, F - Register flag,
+	       T - SPT-bit set, J - Join SPT, M - MSDP created entry, E - Extranet,
+	       X - Proxy Join Timer Running, A - Candidate for MSDP Advertisement,
+	       U - URD, I - Received Source Specific Host Report, 
+	       Z - Multicast Tunnel, z - MDT-data group sender, 
+	       Y - Joined MDT-data group, y - Sending to MDT-data group, 
+	       V - RD & Vector, v - Vector
+	Outgoing interface flags: H - Hardware switched, A - Assert winner
+	 Timers: Uptime/Expires
+	 Interface state: Interface, Next-Hop or VCD, State/Mode
+
+	(10.1.1.80, 239.232.2.2), 00:07:27/00:02:30, flags: sTI
+	  Incoming interface: Lspvif1, RPF nbr 66.66.66.66, Mroute
+	  Outgoing interface list:
+	    Ethernet0/3, Forward/Sparse, 00:07:27/00:02:30
+
+	(10.1.1.90, 239.232.7.7), 00:12:36/00:02:30, flags: sTI
+	  Incoming interface: Lspvif0, RPF nbr 66.66.66.65, Mroute
+	  Outgoing interface list:
+	    Ethernet0/3, Forward/Sparse, 00:12:36/00:02:30
+
+

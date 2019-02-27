@@ -1,0 +1,563 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="content-type">
+  <title>OSPF</title>
+</head>
+<body>
+	<h2>Information</h2>
+	        <ul>
+	          <li>Uses IP protocol number 89. Multicast 224.0.0.5 &amp; 224.0.0.6. </li>
+
+	          <li>The process number is locally significant - it does not need to be the same throughout an area for the routers to build adjacencies. You can have multiple processes on a router. </li>
+	          <li>OSPF doesn't send routes. It sends LSAs. Each router is responsible for figuring out the routes by running a SPF on their database.</li>
+	          <li>The result of a DR election can be, for each router, DR (this is the elected DR), BDR (this is the elected BDR), DROTHER (this router was not elected or did not participate), or &quot;-&quot; (there was no election, this is a P-2-P link).</li>
+	          <li>The standard reference bandwidth for cost calculation is 100Mbps (100,000,000). Use the &quot;auto-cost reference-bandwidth&quot; command to change that value so the cost of higher speed links is acurately reflected.</li>
+
+	          <li>The default BW on a loopback is 8Gbps.</li>
+	          <li>OSPF authentication cans be configured area wide or be interface specific. It used to be that whole areas needed to be authenticated, you could not have one interface with and one without. But it can now be configured at the link level. Note that the key itself is always configured at the link level.</li>
+	          <li>VLINKs are considered to be part of area 0. Be careful when running VLINKs to an authenticates area 0. </li>
+	          <li>There are TWO ways to authenticate VLINKs, by configuring it on the area 0 (but the whole area 0 will then have to be authenticated) or by configuring it on the VLINK (consider the VLINK a tunnel interface). Consequently, if you configure it on the area 0, you do not need to configure it on the VLINK, unless you want a different type. The key itself is alwasy configured on the VLINK.</li>
+	          <li>RID: (1) hard coded (2) highest loopback (3) highest IP address.</li>
+	          <li>Unless the test says otherwise, it is good practice to use hosts masks on OSPF network statements (0.0.0.0) as this makes troubleshooting easier. It is also safer since you can't easily &quot;add&quot; interfaces in a process by mistake.</li>
+
+	          <li>ABR MUST &quot;touch&quot; area 0. This means they need to have either an interface in area 0 or a virtual link to an area 0 ABR. A router with a virtual link is considered to touch area 0. All virtual-links belong to area 0, you will need to turn on authentication on the virtual-link if you turn on authentication on area 0. </li>
+	          <li>Virtual links can be spliced - aka daisy-chained (if you are more than one area away from area 0).</li>
+	          <li>On ethernet, to only send updates to a &quot;required&quot; router, turn ethernet into a NBMA (ip ospf network-type non-broadcast) and use neighbor statements - this can be used as a weak security measure. </li>
+	          <li>On a MA network, only the DR and BDR will show a full adjacency to all their neighors and show as FULL/DROTHER, the non-DR/BDR routers, will show 2-WAY/DROTHER. </li>
+
+	          <li> <span class="content"> To consolidate and summarize routes at an area boundary<span style="font-style: normal; font-weight: normal;">, </span>use the area range command in router configuration mode.</span> </li>
+	          <li> <span class="content"> To create aggregate addresses of external (redistributed) routes for OSPF, use the summary-address command in router configuration mode.</span> </li>
+	          <li>On NBMA, the neighbor statements do not need to be configured on both sides. The hub is the preferred side.</li>
+
+	          <li>On hub and spoke, so not forget to control the election process as it is highly desirable for the hub to be the DR. </li>
+	          <li>If you have a multipoint cloud where not all the spokes are running OSPF, do not use ospf point-to-multipoint. Since point-to-multipoint creates host routes, you will end up missing sites (the ones not running OSPF). If you still have to use point-to-multipoint, do a redist connected on the hub so the network will appear in the ospf table - this is ugly but it works. </li>
+	          <li>Try to nail the Router ID as much as possible; particularly when using virtual-links. If the RID was to change the vlink could not come back up.</li>
+	          <li>On broadcast/non-broadcast, try to nail the election priority as much as possible; particularly when using backup links. </li>
+	        </ul>
+	        <table width="100%" border="1" cellpadding="3" cellspacing="0" class="tiny">
+	          <tr>
+
+	            <td valign="top"><strong>OSPF Network Type</strong></td>
+	            <td width="11%" valign="top"><strong>Hello</strong></td>
+	            <td width="11%" valign="top"><strong>LSA</strong></td>
+	            <td width="11%" valign="top"><strong>Hello Int.</strong></td>
+	            <td width="11%" valign="top"><strong>Dead Int.</strong></td>
+	            <td width="11%" valign="top"><strong>DR/BDR/Elec.</strong></td>
+
+	          </tr>
+	          <tr>
+	            <td valign="top"><strong>Point-to-Point<br />
+	                    </strong>(default for HDLC, PPP, Frame-Relay point-to-point)<strong><br />
+	            </strong></td>
+	            <td valign="top">Multicast<br />
+	        224.0.0.5 <br />            </td>
+
+	            <td valign="top">Multicast<br />
+	        224.0.0.5 </td>
+	            <td valign="top">10</td>
+	            <td valign="top">40</td>
+	            <td valign="top">No</td>
+	          </tr>
+
+	          <tr>
+	            <td valign="top"><strong>Point-to-Multipoint<br />
+	              </strong>* The hub&nbsp;is automatically the center (special LSA) <strong><br />
+	                    </strong>* Host routes will be automagically be installed in the routing tables </td>
+	            <td valign="top">Multicast<br />
+	        224.0.0.5 </td>
+
+	            <td valign="top">Unicast</td>
+	            <td valign="top">30</td>
+	            <td valign="top">120</td>
+	            <td valign="top">No<br />            </td>
+	          </tr>
+	          <tr>
+
+	            <td valign="top"><strong>Point-to-Multipoint Non-Broadcast<br />
+	            </strong></td>
+	            <td valign="top">Unicast</td>
+	            <td valign="top">Unicast</td>
+	            <td valign="top">30</td>
+	            <td valign="top">120</td>
+
+	            <td valign="top">No</td>
+	          </tr>
+	          <tr>
+	            <td valign="top"><strong>Broadcast<br />
+	                    </strong>(default for Ethernet)<strong><br />
+	                    </strong></td>
+	            <td valign="top">Multicast<br />
+
+	        224.0.0.5 </td>
+	            <td valign="top">Multicast<br />
+	        224.0.0.5<br />
+	        224.0.0.6 </td>
+	            <td valign="top">10</td>
+	            <td valign="top">40</td>
+
+	            <td valign="top">Yes</td>
+	          </tr>
+	          <tr>
+	            <td valign="top"><strong>NBMA (Non-Broadcast)<br />
+	</strong>(default for Frame-Relay multipoint &amp; ATM) <strong>&nbsp;</strong></td>
+	            <td valign="top">Unicast<br />            </td>
+
+	            <td valign="top">Unicast</td>
+	            <td valign="top">30</td>
+	            <td valign="top">120</td>
+	            <td valign="top">Yes</td>
+	          </tr>
+	          <tr>
+	            <td valign="top"><strong>Virtual-Link</strong></td>
+
+	            <td valign="top">Unicast</td>
+	            <td valign="top">Unicast</td>
+	            <td valign="top">10</td>
+	            <td valign="top">40</td>
+	            <td valign="top">No</td>
+	          </tr>
+
+	          <tr>
+	            <td valign="top"><strong>Loopback<br />
+	              </strong>* Mask is automatically /32, use point-to-point network type to reflect the &quot;real&quot; subnet&nbsp;</td>
+	            <td valign="top">None</td>
+	            <td valign="top">None</td>
+
+	            <td valign="top">None</td>
+	            <td valign="top">None</td>
+	            <td valign="top">None</td>
+	          </tr>
+	        </table>
+	        <p>* If timers are changed, the changes need to be consistent across the whole area or it will break OSPF.</p>
+	        <table width="100%" border="1" cellpadding="3" cellspacing="0" class="tiny">
+
+	          <tr valign="top">
+	            <td><strong>Interface</strong></td>
+	            <td><strong>OSPF Default Network Type</strong></td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="50%">F/R (Physical)</td>
+	            <td width="50%">Non-Broadcast</td>
+
+	          </tr>
+	          <tr valign="top">
+	            <td width="50%">F/R (Point-to-Point)</td>
+	            <td width="50%">Point-to-Point</td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="50%">F/R (Multipoint)</td>
+
+	            <td width="50%">Non-Broadcast</td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="50%">GE/FE/E</td>
+	            <td width="50%">Broadcast</td>
+	          </tr>
+	          <tr valign="top">
+
+	            <td width="50%">Token-Ring</td>
+	            <td width="50%">Broadcast</td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="50%">ATM (Physical)</td>
+	            <td width="50%">Non-Broadcast</td>
+	          </tr>
+
+	          <tr valign="top">
+	            <td width="50%">ATM (Point-to-Point)</td>
+	            <td width="50%">Point-to-Point</td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="50%">ATM (Multipoint)</td>
+	            <td width="50%">Non-Broadcast</td>
+
+	          </tr>
+	        </table>
+	        <br />
+	        <table width="100%" border="1" cellpadding="3" cellspacing="0" class="tiny">
+	          <tr valign="top">
+	            <td width="10%"><strong>LSA Type</strong></td>
+	            <td width="25%"><strong>Name</strong></td>
+	            <td><strong>Description</strong></td>
+
+	          </tr>
+	          <tr valign="top">
+	            <td width="10%">1</td>
+	            <td width="25%">Router LSA</td>
+	            <td>Include link records:<br />
+	          type-1: point-to-point link to another router<br />
+	          type-2: link to a LAN segment (Network-LSA)<br />
+
+	          type-3: stub link (internal IP prefix)<br />
+	          type-4: virtual link<br />            </td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="10%">2</td>
+	            <td width="25%">Network LSA</td>
+
+	            <td>Contains IP subnet of a LAN and lists all routers on it. Originated by the DR and includes the DR itself.<br />            </td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="10%">3</td>
+	            <td width="25%">Summary LSA</td>
+	            <td>Used to announce inter-area routes.</td>
+
+	          </tr>
+	          <tr valign="top">
+	            <td width="10%">4</td>
+	            <td width="25%">ASBR Summary LSA</td>
+	            <td>Used to announce location of ASBRs to other areas.<br />            </td>
+	          </tr>
+	          <tr valign="top">
+
+			  <td>5</td>
+			  <td>External LSA </td>
+	          <td>Used to announce external routing information within OSPF domain.</td>
+	          </tr>
+	          <tr valign="top">
+	            <td width="10%">6</td>
+	            <td width="25%">MOSPF Group Membership LSA</td>
+
+	            <td>Not implemented in IOS.</td>
+	          </tr>
+	          <tr valign="top">
+	            <td>7</td>
+	            <td width="25%">NSSA</td>
+	            <td>Used to announce external routing information within NSSA.<br />            </td>
+
+	          </tr>
+	          <tr valign="top">
+	            <td width="10%">8</td>
+	            <td width="25%">External Attribute LSA</td>
+	            <td>Not implemented in IOS.</td>
+	          </tr>
+	          <tr valign="top">
+
+	            <td>9</td>
+	            <td width="25%">Opaque LSA</td>
+	            <td>Used to announce application specific info, like MPLS TE attributes.</td>
+	          </tr>
+	          <tr valign="top">
+	            <td>10</td>
+	            <td width="25%">Opaque LSA</td>
+
+	            <td>Same as above</td>
+	          </tr>
+	          <tr valign="top">
+	            <td>11</td>
+	            <td width="25%">Opaque LSA</td>
+	            <td>Same as above</td>
+	          </tr>
+
+	        </table>
+	        <p>&nbsp;</p>
+	        <h2>Configuration</h2>
+	        <table width="100%" border="0" cellpadding="0" cellspacing="0" class="tiny">
+	          <tr valign="top">
+	            <td width="50%">&nbsp;</td>
+	            <td width="50%">&nbsp;</td>
+	          </tr>
+
+	          <tr valign="top">
+	            <td width="50%">&nbsp;</td>
+	            <td width="50%">&nbsp;</td>
+	          </tr>
+	        </table>
+	        <h2>Links</h2>
+	        <p><a href="http://www.cisco.com/warp/public/104/1.html">OSPF Design Guide</a></p>
+	        <p><a href="http://www.cisco.com/warp/public/104/nssa.html">OSPF Not-So-Stubby Area (NSSA)</a></p>
+
+	        <p><a href="http://www.cisco.com/warp/public/104/dcprob.html">Why OSPF Demand Circuit Keeps Bringing Up the Link</a></p>
+	        <p><a href="http://www.cisco.com/warp/public/104/25.shtml">Sample Configuration for Authentication in OSPF</a></p>
+	        <p><a href="http://www.cisco.com/warp/public/104/27.html">Sample Configuration for OSPF Authentication on a Virtual Link</a></p> 
+	      <!-- InstanceEndEditable --></div>
+	            <div id="footer"><!-- InstanceBeginEditable name="Footer" -->
+	        <h3>Troubleshooting Virtual-Links</h3>
+	        <p>Virtual-links can be a pain in the *** to troubleshoot. &quot;sh ip ospf virt&quot; is a good command to verify correct operation (&quot;debug ip ospf adj&quot; also works good but is a little more complicated). However, if you look at the output below, you may think that both VL are good to go because of the &quot;up&quot; status. That is not the case below VL1 is working and VL0 is not. If the &quot;Timer intervals configured&quot; section is incomplete, the peers did not complete EXCAP and arenot talking. </p>
+
+	        <p class="code">R04#sh ip ospf virt<br />
+	          &nbsp;&nbsp;Virtual Link OSPF_VL1 to router 2.2.2.2 is up<br />
+	&nbsp;&nbsp;Run as demand circuit<br />
+	&nbsp;&nbsp;DoNotAge LSA allowed.<br />
+	&nbsp;&nbsp;Transit area 100, via interface FastEthernet0/0, Cost of using 1<br />
+	&nbsp;&nbsp;Transmit Delay is 1 sec, State POINT_TO_POINT,<br />
+	&nbsp;&nbsp;Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Hello due in 00:00:05<br />
+
+	&nbsp;&nbsp;&nbsp;&nbsp;Adjacency State FULL (Hello suppressed)<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Index 1/3, retransmission queue length 0, number of retransmission 1<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;First 0x0(0)/0x0(0) Next 0x0(0)/0x0(0)<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Last retransmission scan length is 1, maximum is 1<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Last retransmission scan time is 0 msec, maximum is 0 msec<br />
+	&nbsp;&nbsp;Message digest authentication enabled<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Youngest key id is 1<br />
+	&nbsp;&nbsp;Virtual Link OSPF_VL0 to router 3.3.3.3 is up<br />
+	&nbsp;&nbsp;Run as demand circuit<br />
+
+	&nbsp;&nbsp;DoNotAge LSA allowed.<br />
+	&nbsp;&nbsp;Transit area 10, via interface Serial0/1/0, Cost of using 64<br />
+	&nbsp;&nbsp;Transmit Delay is 1 sec, State POINT_TO_POINT,<br />
+	&nbsp;&nbsp;Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Hello due in 00:00:00<br />
+	&nbsp;&nbsp;Message digest authentication enabled<br />
+	&nbsp;&nbsp;Youngest key id is 1<br />
+	R04# </p>
+	When do we run full SPF and partial SPF ?
+	A:
+	 If there is a change in,
+
+	  - type 1 & 2 we run Full SPF and update all the routes 
+	  - type 3 & 5 & 7 we run partial SPF and update the given prefix   
+	  - type 4 we run partial SPF for all the prefix advertised by the
+	    given ASBR after CSCdt66477 ( before we computed All external
+	    route and type 3  )
+<span style="font-weight: bold;">Links<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; * Troubleshooting OSPF<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; <a
+ href="http://www.cisco.com/warp/customer/104/trouble_main.html">http://www.cisco.com/warp/customer/104/trouble_main.html</a><br>
+
+<br>
+<span style="font-weight: bold;"><span style="font-weight: bold;"></span></span></span>OSPF<br>
+&nbsp;&nbsp;&nbsp; Router ID is the highest Loopback IP address or just
+the highest IP address if no Loopbacks exist.<br>
+&nbsp;&nbsp;&nbsp; DR and BDR send to 224.0.0.5 while all other router
+(DRother) send to 224.0.0.6.<br>
+&nbsp;&nbsp;&nbsp; <br>
+&nbsp;&nbsp;&nbsp; LSA types<br>
+&nbsp;&nbsp;&nbsp; 1 - Router LSA : Generated by each router in an
+area. Flooded only in a particular area. Describes the link state of
+each of its interfaces. ID is Router ID.<br>
+
+&nbsp;&nbsp;&nbsp; 2 - Network LSA: Generated by the DR on each
+segment. Describes the set of routers attached to a particular segment.<br>
+&nbsp;&nbsp;&nbsp; 3 - Summary LSA: Generated by ABR's <br>
+&nbsp;&nbsp;&nbsp; 4 - Summary LSA: Describes routers to ASBR<br>
+&nbsp;&nbsp;&nbsp; 5 - External LSA: Describes routes to external
+destinations originated by the ASBR. Flooded all over except stub areas.<br>
+&nbsp;&nbsp;&nbsp; 7 - For NSSA's<br>
+&nbsp;&nbsp;&nbsp; 9, 10, 11 - For future use<br>
+
+<br>
+&nbsp;&nbsp;&nbsp; Authentication:<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; <b>ip ospf authentication-key</b><i>
+key </i>(Goes under interface configuration) or <b>ip ospf
+message-digest-key</b><i> keyid</i> <b>md5</b> <i>key</i><br>
+
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; <b>area</b><i> area-id</i> <b>authentication
+</b><span style="font-weight: bold;">[message-digest] </span>(Goes
+under router ospf configuration)<br>
+<br>
+&nbsp;&nbsp;&nbsp; Virtual Link:<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; <b>area</b> <i>&lt;area-id&gt;</i><b>virtual-link</b>
+
+&lt;<i>RID</i>&gt;<b><span style="font-family: mon;"><br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; </span>ip ospf network {broadcast |
+non-broadcast | point-to-multipoint}</b><br>
+&nbsp;&nbsp;&nbsp; <br>
+&nbsp;&nbsp; &nbsp; Route Summarization:<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 1. Inter-area: &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; <br>
+
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <b>area</b> <i>area-id</i>
+<b>range</b> <i>address mask</i>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; Does not
+apply summarization to routes redistributed into OSPF. <br>
+
+<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 2. External: &nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp; <br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <b>summary-address</b>
+<i>ip-address mask </i>(Under router ospf)<br>
+&nbsp;&nbsp;&nbsp; <br>
+
+&nbsp;&nbsp;&nbsp; Stub Area:<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; All routers in the stub area need to be
+configured as stub routers. All routers in the stub area exchange
+hellos with the (E bit) set.<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; <span style="font-style: italic;">Totally
+Stubby Areas </span>are indicated by adding the "no-summary" keyword
+to the stub configurations. Default routes are the only routes <br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; injected into such an area.<br>
+<b>&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; area</b> &lt;<i>area-id</i>&gt; <b>stub
+[no-summary]<br>
+
+<br>
+&nbsp;&nbsp;&nbsp; </b>Redistribution:<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <b>redistribute</b> <i>protocol</i>
+[<i>process-id</i>] [<b>metric</b> <i>value</i>][<b>metric-type</b> <i>value</i>]
+[<b>route-map</b> <i>map-tag</i>] [<b>subnets</b>]<b><br>
+
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; </b>If subnet is not used only
+networks that have not been subnetted are redistributed. metric-type
+denoties type E1 or E2 routes. By default E2.<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; E1 routes are external routes and
+the metric is calculated as the external cost plus the internal cost.
+E2 routes are just the external cost to the destination.<br>
+<br>
+<b>&nbsp;&nbsp; <br>
+<br>
+<UL><b>OSPF</b>
+
+<LI>Interfaces expected to form adjacencies must have the same OSPF network type configured.
+<LI>On a NBMA network, configure a hub to be priority 20 and the spokes to be 0.
+<LI>On a NBMA network, if the hub is configured as network type Broadcast, routes to remote networks will appear to have originated from the remote spoke routers.
+<LI>Similarly, if it is configured as point-to-multipoint, routes to remote networks will appear to have originated from the hub router.
+<LI>When using a virtual link to connect remote areas, remember that any router participating in the virtual link is considered connected to area 0.
+
+<LI>Prior to 12.0(1.2), OSPF calculated best path metrics by choosing the lowest-cost path. RFC2178 and RFC2328 changed this to be highest-cost path. CSCdr13715 changed this for IOS 12.1(1.3) and 12.0(10.4) and higher, to revert back to the old (lowest-cost, RFC1583) metric style by using the router IOS command <b>compatible rfc1583</b>.
+<LI>In "show ip ospf stat," the following is a code listing:
+<PRE>
+R7#sh ip ospf stat 
+  Area 0: SPF algorithm executed 3 times 
+  Area 5: SPF algorithm executed 60 times 
+  
+  SPF calculation time 
+Delta T   Intra D-Intra Summ    D-Summ  Ext     D-Ext   Total   Reason 
+00:01:31   8    0       4       0       8       0       24      R, 
+00:01:21   8    0       4       0       8       0       24      R, 
+00:01:11   8    0       4       0       8       0       24      R, 
+00:01:01   8    0       4       0       8       0       24      R, 
+00:00:51   8    0       4       0       8       0       24      R, 
+00:00:41   8    0       4       0       8       0       24      R, 
+00:00:30   8    0       4       0       8       0       24      R, 
+00:00:20   8    0       4       0       8       0       24      R, 
+00:00:10   8    0       4       0       8       0       24      R, 
+00:00:00   8    0       4       0       8       0       24      R, 
+
+Intra - number of intra area lsa's that changed 
+ Time for Intra area route (SPF) calculation. 
+
+D-Intra - time spent computing these in 1/1000 s 
+ Time for removing old intra route. 
+
+Summ - number of summary lsa's that changed 
+ Time for inter area SPF calculation. 
+
+D-Summ - time 
+ Time for removing old summary route. 
+
+Ext - number of externals that changed 
+ Time for external route. 
+
+D-Ext - time 
+ Time for removing old external route 
+
+Total - total 
+
+Reasons: 
+ R, router link change 
+ N, network link change 
+ SN, summary network link change 
+ SA, ASBR summary change 
+ X, external change 
+</pre>
+</UL>
+<UL>
+<LI>OSPF is a classless link-state routing protocol. 
+
+<LI>OSPF uses the concept of Areas, where all "core" routers form the backbone area called "Area 0." Routers can paritcipate in a purely non-backbone ospf network (i.e. one where only Area 1 is in use), but as soon as another area is added, OSPF shits the bed.
+
+<LI>Areas can be represented by either decimal values (i.e. 0, 1, 10, 69), or by dotted decimal values similar to IP addresses (i.e. 10.1.1.1). They do interrelate; for instance, 0.0.0.0 is the same area as the decimal value area 0.
+
+<LI>Has a nearly infinite network diameter, and bases its metrics on Cost, a parameter closely tied to the bandwidth of the interface.
+
+
+<LI>It is an industry standard.
+
+<LI>It routes IP only.
+
+<LI>Its administrative distance is 110.
+
+<LI>Is a protocol type 89 IP packet.
+
+<LI>Uses a RID (Router ID), which is based off the highest IP address configured on any interface, including those that are not configured explicitly to use OSPF. If there is a loopback interface configured, it will use that as its RID, even if the IP address is lower than a configured "normal" interface. This RID is assigned as soon as the OSPF process is started and adjacencies are formed with other routers, and will not change, even if the OSPF process is cleared. Reloads are frequently necessary.
+
+<LI>DR/BDR routers are not re-elected, even if a router comes online with a high priority. Changing the routers requires downing the DR, making the BDR the DR and whatever new router the BDR... then downing the new DR so that the new BDR can finally become the DR.
+
+<LI>For every broadcast network, there is a Designated Router and a Backup Designated Router. This decision is based on the highest IP address on the router (the RID). 
+
+<LI>Uses multicasts on 224.0.0.5. Multiple processes can be run on a single router, but with the concept of areas this doesn't seem to make much sense.
+
+<LI>Uses multicasts on 224.0.0.6 for communication of LSA's to DR/BDR's. 
+
+<LI>OSPF multicasts use the MAC address of 01-00-5E-00-00-00.
+
+<LI>A classic "gotcha" in NBMA networks is that ospf interfaces are one of three types - Broadcast, NonBroadcast, and Point-to-Point. Interfaces on either end of a link must be of the same type or else a neighbor relationship will never form. A classic way to overcome this is to configure the interfaces to all be ospf "point-to-multipoint" interfaces.
+
+<LI>Secondary addressing on a router interface is supported, but the secondary address must be in the same area as the primary address, and the secondary address cannot be configured without the primary being done, as well.
+
+<LI>In IOS versions 9.1 and less, OSPF requires a <b>neighbor</b> command to be issued for each peer on NMBA networks such as Frame Relay, SMDS, and X.25. in 9.21 and later, <b>map</b> statements and <b>ip ospf network</b> statements can be used to change the NMBA network to appear as a broadcast network to OSPF.
+
+
+<LI>In IOS versions prior to 10.3, OSPF creates metrics for varying-bandwidth interfaces (such as serial interfaces) based on the capacity of the circuit, instead of the configured bandwidth. After those releases of IOS, the <b>ospf auto-cost-determination</b> parameter uses the 10^8/bandwidth value for its metrics.
+
+<LI>If the <b>neighbor</b> statement is used, be sure to use primary addressing.
+
+<LI>Virtual links cannot use stub areas as transit areas. OSPF communicates over an unnumbered point-to-point network when using a virtual link. They can only traverse a single area.
+
+<LI>When redistributing between multiple OSPF processes, all SPF metrics are discarded and new metrics are used based on the metrics used in redistribution.
+
+<LI>When authentication is used but no key specified, the default character string of NULL is used (in the case of MD5 authentication, it also defaults to key number 0).
+
+<LI>Authentication keys in cleartext can be up to 8 characters long. MD5 uses a 16 character key.
+
+<LI>When routes are propogated into OSPF and no metric is specified, the default metric for all routing protocols is 20, except for EBGP, which has a metric of 1.
+
+<LI>Any interface may be configured with a <b>ip ospf priority</b> <i>number</i> parameter, where <i>number</i> is between 0 and 255. Higher numbers make a router able to become a DR/BDR easier. By default, all interfaces are priority 1. Priority 0 makes an interface unable to become a DR/BDR. Point-to-point interfaces or subinterfaces do not use DR/BDR's, so this concept is irrelevant for those types of interfaces.
+
+
+<LI>OSPF routers are one of the following:
+
+<OL>
+<LI><B>ASBR</B> - <i>Autonomous System Border Router</i> - routers that form the boundary between Autonomous Systems. These routes are exchanged as "exterior routes."
+<LI><B>ABR</b> -  <i>Area Border Router</i> - routers that attach to multiple areas. Routers run one algorhythm for each area they are connected.
+<LI><B>Backbone</b> - router that has an interface on Area 0.
+
+<LI><b>Internal</b> - router that has all its interfaces within a single area.
+</OL>
+
+<LI>OSPF synchronizes its updates using LSA's (Link State Advertisements). These can come in one of 5 types, typically:
+
+<OL>
+<LI><B>Type 1</B> - <i>Router Link Advertisements</i> - LSA's that describe to other routers all of the interfaces it is attached to. Flooded through a single area only.
+<LI><B>Type 2</b> - <i>Network Link Advertisements</i> - LSA's generated by the DR for multi-access networks. Flooded through a single area only.
+
+<LI><B>Type 3 and 4</b> - <i>Summary Link Advertisements</i> - LSA's generated by ABRs that are flooded through their associated areas. Type 3 describe routes to other area networks. Type 4 describe routes to ASBR's (external routes).
+<LI><b>Type 5</b> - <i>AS External Link Advertisements</i> - LSA's generated by ASBR's that are flooded throughout the entire AS. Default routes can also be advertised this way.
+</OL>
+
+<LI>OSPF areas can be one of the following:
+
+<OL>
+<LI><B>Normal</B> - "Normal" areas propogate all LSA traffic.
+
+<LI><B>Stub</b> - When all routers in an area are configured as "Stub" routers, they will not receive external routes, but will still receive network LSA's. This is configured on all routers in the "side" area.
+<LI><B>Totally Stubby</b> - Much like a Stub area, a Totally Stubby area is when you configure the "Stub" parameter on the ABR's as well as the "side" are routers. This is Cisco proprietary, not part of the original spec.
+<LI><b>Not-So-Stubby</b> - These areas behave like a stub area, but are allowed to advertise external routes (<i>not receive them</i>). These areas use LSA type 7 for this exchange. This configuration is helpful for route redistribution between, say, RIP and OSPF, where RIP redistributed routes are done as external routes. Supported in IOS versions 11.2 and later.
+</OL>
+
+<LI>OSPF updates are usually sent about every 10 seconds, but routes can age indefinately. Short-lived, renewing routes are an indication of a poorly configured, "flapping" network.
+
+</UL>
+
+<P>For more information, please reference the following RFC's:
+
+
+<P><A href="http://www.faqs.org/rfcs/rfc1131.html">RFC 1131 - OSPF Version 1</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1247.html">RFC 1247 - OSPF LSA's and router classification</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1364.html">RFC 1364 - OSPF and BGP interaction</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1584.html">RFC 1584 - OSPF Multicasting Support</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1585.html">RFC 1585 - MOSPF</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1587.html">RFC 1587 - OSPF Not-So-Stubby Areas</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1850.html">RFC 1850 - OSPF MIB's</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1765.html">RFC 1765 - OSPF Database Overflow</a>
+<P><A href="http://www.faqs.org/rfcs/rfc1793.html">RFC 1793 - OSPF Demand Circuits</a>
+
+<P><A href="http://www.faqs.org/rfcs/rfc2328.html">RFC 2328 - OSPF Version 2</a>
+
+</b>
+</body>
+</html>

@@ -1,0 +1,174 @@
+# CAC Failure
+
+## case1: Head-end CAC failure
+
+### Test Description
+
+### Test Method
+Using the following IOU lab setup ![IOU CAC Failure](images/IOS-CACfail.png "Head-end CAC Failure")   
+we setup p2mp tunnel at she1 with destinations edge1 & edge2 that uses 45% of the bandwidth.
+
+ 	interface Tunnel66
+	 description SHE1->edge1,edge2 -> DYN
+	 ip unnumbered Loopback66
+	 ip pim passive
+	 ip igmp static-group 239.232.2.2 source 66.66.1.101
+	 load-interval 30
+	 tunnel mode mpls traffic-eng point-to-multipoint
+	 tunnel destination list mpls traffic-eng name P2MP-DYN-TO-EDGES
+	 tunnel mpls traffic-eng priority 7 7
+	 tunnel mpls traffic-eng bandwidth 45000
+	 tunnel mpls traffic-eng affinity 0x0 mask 0xFF
+
+	she1#sh mpls tr tun br
+	Signalling Summary:
+	    LSP Tunnels Process:            running
+	    Passive LSP Listener:           running
+	    RSVP Process:                   running
+	    Forwarding:                     enabled
+	    Periodic reoptimization:        every 12000 seconds, next in 9636 seconds
+	    Periodic FRR Promotion:         Not Running
+	    Periodic auto-bw collection:    every 1200 seconds, next in 183 seconds
+
+	P2P TUNNELS/LSPs:
+	Displayed 0 (of 0) heads, 0 (of 0) midpoints, 0 (of 0) tails
+
+	P2MP TUNNELS:
+	                         DEST        CURRENT
+	INTERFACE   STATE/PROT  UP/CFG     TUNID  LSPID 
+	Tunnel66    up/up       2/2        66     4087  
+	Tunnel99    admin-down  0/2        99     none  
+	Displayed 2 (of 2) P2MP heads
+
+	P2MP SUB-LSPS:
+	SOURCE        TUNID  LSPID  DESTINATION   SUBID  STATE UP IF      DOWN IF   
+	66.66.66.65   66     4087   66.66.66.69   1      Up    head       Et0/2     
+	66.66.66.65   66     4087   66.66.66.70   2      Up    head       Et0/2     
+	Displayed 2 P2MP sub-LSPs:
+	          2 (of 2) heads, 0 (of 0) midpoints, 0 (of 0) tails
+
+We then setup another tunnel at she1 to use 70% of the bandwidth and we verify through debugs the CAC failure at the head-end
+
+	!
+	interface Tunnel99
+	 description SHE1->edge1,edge2-DYN- CAC BW Failure
+	 ip unnumbered Loopback66
+	 ip pim passive
+	 ip igmp static-group 239.232.2.2 source 66.66.1.101
+	 load-interval 30
+	 tunnel mode mpls traffic-eng point-to-multipoint
+	 tunnel destination list mpls traffic-eng name Tun99-extraBW
+	 tunnel mpls traffic-eng priority 7 7
+	 tunnel mpls traffic-eng bandwidth 700000
+
+
+	she1#conf t
+	Enter configuration commands, one per line.  End with CNTL/Z.
+	she1(config)#int tun 99
+	she1(config-if)#no shut
+	she1(config-if)#
+	*Apr 17 13:44:08.696: TE-PCALC: 66.66.66.65_68->66.66.66.69_99 {13}: Tunnel99->66.66.66.69 Path (get path area) [66.66.66.69]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:08.696: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:08.696: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:08.696: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	*Apr 17 13:44:08.696: TE-PCALC: 66.66.66.65_68->66.66.66.69_99 {13}: Tunnel99->66.66.66.69 Path (static path) [66.66.66.69]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:08.696: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:08.696: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:08.696: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	
+*Apr 17 13:44:08.696: TE-PCALC-SPF: REJECT(max_bw too small) node 66.66.66.65, link 66.1.100.10 bw 100000
+
+	*Apr 17 13:44:08.696: TE-PCALC-PATH: create_path_hoplist: No addresses to connect 0.0.0.0 to 66.1.100.10
+	*Apr 17 13:44:08.696: TE-PCALC: 66.66.66.65_68->66.66.66.70_99 {13}: Tunnel99->66.66.66.70 Path (get path area) [66.66.66.70]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:08.696: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:08.696: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:08.696: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	she1(config-if)#
+	*Apr 17 13:44:08.696: TE-PCALC: 66.66.66.65_68->66.66.66.70_99 {13}: Tunnel99->66.66.66.70 Path (static path) [66.66.66.70]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:08.696: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:08.696: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:08.696: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	
+*Apr 17 13:44:08.696: TE-PCALC-SPF: REJECT(max_bw too small) node 66.66.66.65, link 66.1.100.10 bw 100000
+
+	*Apr 17 13:44:08.696: TE-PCALC-PATH: create_path_hoplist: No addresses to connect 0.0.0.0 to 66.1.100.10
+	she1(config-if)#
+	*Apr 17 13:44:10.700: %LINK-3-UPDOWN: Interface Tunnel99, changed state to up
+	she1(config-if)#
+	*Apr 17 13:44:12.940: TE-PCALC: 66.66.66.65_69->66.66.66.69_99 {13}: Tunnel99->66.66.66.69 Path (get path area) [66.66.66.69]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:12.940: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:12.940: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:12.940: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	*Apr 17 13:44:12.940: TE-PCALC: 66.66.66.65_69->66.66.66.69_99 {13}: Tunnel99->66.66.66.69 Path (static path) [66.66.66.69]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:12.940: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:12.940: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:12.940: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	*Apr 17 13:44:12.940: TE-PCALC-SPF: REJECT(max_bw too small) node 66.66.66.65, link 66.1.100.10 bw 100000
+	*Apr 17 13:44:12.940: TE-PCALC-PATH: create_path_hoplist: No addresses to connect 0.0.0.0 to 66.1.100.10
+	*Apr 17 13:44:12.940: TE-PCALC: 66.66.66.65_69->66.66.66.70_99 {13}: Tunnel99->66.66.66.70 Path (get path area) [66.66.66.70]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:12.940: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:12.940: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:12.940: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	she1(config-if)#
+	*Apr 17 13:44:12.940: TE-PCALC: 66.66.66.65_69->66.66.66.70_99 {13}: Tunnel99->66.66.66.70 Path (static path) [66.66.66.70]  FULL_PATH (ospf 66  area 0)
+	*Apr 17 13:44:12.940: TE-PCALC:   bw 700000, min_bw 0, metric: 0
+	*Apr 17 13:44:12.940: TE-PCALC:   setup_pri 7, hold_pri 7
+	*Apr 17 13:44:12.940: TE-PCALC:   affinity_bits 0x0, affinity_mask 0xFFFF
+	*Apr 17 13:44:12.940: TE-PCALC-SPF: REJECT(max_bw too small) node 66.66.66.65, link 66.1.100.10 bw 100000
+	*Apr 17 13:44:12.940: TE-PCALC-PATH: create_path_hoplist: No addresses to connect 0.0.0.0 to 66.1.100.10
+
+	she1#sh mpls tr tun br
+	Signalling Summary:
+	    LSP Tunnels Process:            running
+	    Passive LSP Listener:           running
+	    RSVP Process:                   running
+	    Forwarding:                     enabled
+	    Periodic reoptimization:        every 12000 seconds, next in 9581 seconds
+	    Periodic FRR Promotion:         Not Running
+	    Periodic auto-bw collection:    every 1200 seconds, next in 128 seconds
+
+	P2P TUNNELS/LSPs:
+	Displayed 0 (of 0) heads, 0 (of 0) midpoints, 0 (of 0) tails
+
+	P2MP TUNNELS:
+	                         DEST        CURRENT
+	INTERFACE   STATE/PROT  UP/CFG     TUNID  LSPID 
+	Tunnel66    up/up       2/2        66     4087  
+	Tunnel99    up/down     0/2        99     none  
+	Displayed 2 (of 2) P2MP heads
+
+	P2MP SUB-LSPS:
+	SOURCE        TUNID  LSPID  DESTINATION   SUBID  STATE UP IF      DOWN IF   
+	66.66.66.65   66     4087   66.66.66.69   1      Up    head       Et0/2     
+	66.66.66.65   66     4087   66.66.66.70   2      Up    head       Et0/2     
+	Displayed 2 P2MP sub-LSPs:
+			          2 (of 2) heads, 0 (of 0) midpoints, 0 (of 0) tails
+
+### Test Results
+
+## case2: Mid-point CAC failure
+
+### Test Description
+
+### Test Method
+Using the following IOU lab setup ![IOU CAC Failure](images/IOS-CACfail.png "Midpoint CAC Failure")   
+we setup a p2mp tunnel at she1 with destinations edge1 & edge2 that uses 49% of bandwidth of shortest path link between core1 and edge2 (at that threshold core1 wont send TE attribute update). then we setup second tunnel at she1 to edge1 & edge2 to use 60% of link bandwidth between core1 and edge2 and we verify through debugs the CAC failure at core1 and subsequent update flooding of its TE attributes.
+### Test Results
+
+Resource / policy attributes are configured on every link and define the capabilities of the network
+Bandwidth
+Resource Class Affinity string (policy)
+TE-specific link metric
+ip rsvp bandwidth x y
+GLOBAL POOL  maximum bw:  X
+ X independent of P (physical)
+ Y is ignored
+TE supports 8 levels of pre-emption
+Note: Higher pre-emption level = lower numerical value
+Supports the ability to include / exclude certain links for certain traffic trunks based on a user-defined Policy 
+Tunnel is characterized by:
+ 32-bit resource-class affinity string 
+ 32-bit resource-class mask (0 = don’t care, 1 = care)
+Link is characterized by a 32-bit resource-class affinity string
+Default-value of tunnel / link bits is 0
+Default value of the tunnel mask = 0x0000FFFF

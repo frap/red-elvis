@@ -1,0 +1,19 @@
+# IOS P2MP Proof of Concept Tests
+
+ * [Bandwidth Constraint Based Path Computation](/IOS-PCALC.html)
+ * [CAC failure](/IOS-CACfailure.html)
+ * [FRR Link Protection](/IOS-FRRLP.html)
+ * [Node failure](/IOS-Nodefail.html)
+ * [Bud Failure modes](/IOS-Bud.html)
+ * [Spatial redundancy via Affinity attributes](/IOS-Affinity.html)
+ * [Pre-emption](/IOS-Preemption.html)
+
+## Deployment Considerations
+ * 7600 P2MP supports Egress Replication ONLY. So canNOT exist with MVPN. Ingress capable acrds have to be powered off
+ * No support for PIM SM and bidir
+ * TE FRR Link protection only
+ * Supports head-end scalability of 1500 TE Tunnels/sub LSPs
+ * Supports scalability limit mispoint 10,000 tunnels/sub lsps
+ * For line rate performance use ES+ line cards
+ * when configured FRR over port-channel, active and backup port-channel interfaces have to be bundled across same line cards
+
