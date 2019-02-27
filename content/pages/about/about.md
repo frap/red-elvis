@@ -1,8 +1,8 @@
 ---
-title: "About gatsby-starter-morning-dew"
+title: "All about the Gas"
 slug: gatsby-starter-morning-dew
-cover: ./gatsby-cover.png
-date: 2018-09-30
+cover: ./ruru-seriously.jpg
+date: 2019-01-25
 language: en
 disqus: true
 type: page
@@ -10,73 +10,7 @@ type: page
 
 [![Build Status](https://travis-ci.org/maxpou/gatsby-starter-morning-dew.svg?branch=master)](https://travis-ci.org/maxpou/gatsby-starter-morning-dew) [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier) [![Maintainability](https://api.codeclimate.com/v1/badges/e09f1ac1a5cdb2987a6f/maintainability)](https://codeclimate.com/github/maxpou/gatsby-starter-morning-dew/maintainability)
 
-
-## gatsby-starter-morning-dew
-
-Gatsby starter for creating a new blog!
-
-[Demo website.](https://maxpou.github.io/gatsby-starter-morning-dew/)
-
-![screenshot](https://i.imgur.com/aRTBbKs.jpg)
-
-
-## Installation
-
-
-* with Gatsby-cli: `gatsby new gatsby-blog https://github.com/maxpou/gatsby-starter-morning-dew`
-
-* without Gatsby-cli
-
-  ```bash
-  git clone my-site git@github.com:maxpou/gatsby-starter-morning-dew.git
-  cd my-site
-  yarn install
-  ```
-
-## Features
-
-- [💜 Gatsby v2](https://www.gatsbyjs.org/) / React 16
-- 🔍 SEO optimized (robot.txt)
-- 💌 Write posts/pages in Markdown
-  - 🎨 Code syntax highlight
-  - 📚 Multilang support (blog post only)
-- 📱 Responsive design
-- ✨ PWA ready
-  - ✈️ Offline support
-  - 📃 Manifest support 
-- [🔧 Fully configurable (see data/siteConfig.js)](./data/siteConfig.js)
-- 💬 Disqus support
-- 💅 css-in-js (with [styled-components](https://www.styled-components.com))
-- 🔖 Groups post with tags
-- 📊 Google Analytics support
-- 🐦 post preview image generation (Twitter, Facebook)
-- 💎 Developer tools (eslint, prettier)
-- 👷 Travis CI support
-
-
-![Lighthouse scores (locally :bowtie:)](https://lighthouse.now.sh/?perf=97&pwa=96&a11y=92&bp=100&seo=100)
-
-
-## Commands
-
-```sh
-# working locally
-yarn dev
-
-# generate build
-yarn build
-
-# format code
-yarn format
-
-# lint code
-yarn lint
-
-# Generate generate post preview images (yarn dev need to run before)
-yarn generatePostPreviewImages
-```
-
-**:warning: Add `--prefix-paths` if you are using path prefix!**
+Wahoo! new Site for Gas!!!
 
 ## Configure
 

@@ -6,8 +6,8 @@ cover: ./cover.jpg
 generate-card: false
 language: en
 tags:
-    - programming
-    - stuff
+    - clojure
+    - crap
     - fake
 ---
 
